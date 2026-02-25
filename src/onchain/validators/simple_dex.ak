@@ -30,14 +30,14 @@ pub type OrderDatum {
 
 pub type OrderRedeemer {
   // Buyer specifies how many offer tokens they want to purchase
-  Order
+  Buy
   // Owner cancels and reclaims — no extra data needed
   Cancel
 }
 
 // Simple DEX swap validator
 // Seller locks offer tokens at this script address with an OrderDatum.
-// Buyer submits a Order redeemer to purchase — must pay the seller the ask token at the specified price.
+// Buyer submits a Buy redeemer to purchase — must pay the seller the ask token at the specified price.
 // Seller submits a Cancel redeemer to reclaim — must sign the transaction.
 // Uses blake2b_256 tagging on the UTxO OutputReference to prevent double satisfaction.
 validator simple_dex {
@@ -63,8 +63,8 @@ validator simple_dex {
         |> crypto.blake2b_256()
 
     when redeemer is {
-      // Order: verify the seller receives payment with the correct tag
-      Order ->
+      // Buy: verify the seller receives payment with the correct tag
+      Buy ->
         self.outputs
           |> list.any(
               fn(output) {
@@ -140,10 +140,10 @@ fn mock_tag(utxo: OutputReference) -> ByteArray {
     |> crypto.blake2b_256()
 }
 
-// -- Order Tests --
+// -- Buy Tests --
 
 // Happy path: correct recipient, correct tag, exact payment → should pass
-test order_succeeds() {
+test buy_succeeds() {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -169,12 +169,12 @@ test order_succeeds() {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // Tag is from a different UTxO — validator computes tag from the actual utxo
 // being spent, so a mismatched tag fails with is_correct_tag ? False
-test order_fails_wrong_tag() fail {
+test buy_fails_wrong_tag() fail {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -201,11 +201,11 @@ test order_fails_wrong_tag() fail {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // Buyer pays 99 instead of 100 — fails with is_price_met ? False
-test order_fails_insufficient_payment() fail {
+test buy_fails_insufficient_payment() fail {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -230,11 +230,11 @@ test order_fails_insufficient_payment() fail {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // Payment goes to #"ff" instead of alice (#"01") — fails with is_sent_to_owner ? False
-test order_fails_wrong_recipient() fail {
+test buy_fails_wrong_recipient() fail {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -259,11 +259,11 @@ test order_fails_wrong_recipient() fail {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // Output has NoDatum instead of InlineDatum — crashes on expect InlineDatum(raw_datum)
-test order_fails_no_datum() fail {
+test buy_fails_no_datum() fail {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -287,11 +287,11 @@ test order_fails_no_datum() fail {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // Buyer pays 150 instead of 100 — overpaying is allowed (>= check)
-test order_succeeds_overpay() {
+test buy_succeeds_overpay() {
   let alice = #"01"
   let order = mock_order(alice)
   let utxo = mock_utxo()
@@ -316,7 +316,7 @@ test order_succeeds_overpay() {
     transaction.placeholder
       |> fn(t) { Transaction { ..t, outputs: [output] } }
 
-  simple_dex.spend(Some(order), Order, utxo, tx)
+  simple_dex.spend(Some(order), Buy, utxo, tx)
 }
 
 // -- Cancel Tests --
@@ -401,9 +401,9 @@ test double_satisfaction_blocked() fail {
       |> fn(t) { Transaction { ..t, outputs: [single_payment] } }
 
   // UTxO A: validator computes blake2b(utxo_a) → matches tag_a → passes
-  let order_a_passes = simple_dex.spend(Some(order), Order, utxo_a, tx)
+  let order_a_passes = simple_dex.spend(Some(order), Buy, utxo_a, tx)
   // UTxO B: validator computes blake2b(utxo_b) → doesn't match tag_a → fails
-  let order_b_passes = simple_dex.spend(Some(order), Order, utxo_b, tx)
+  let order_b_passes = simple_dex.spend(Some(order), Buy, utxo_b, tx)
 
   // Combined result is False — Eve can't steal the second order
   order_a_passes && order_b_passes
