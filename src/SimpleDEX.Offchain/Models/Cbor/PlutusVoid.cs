@@ -1,7 +1,7 @@
 using Chrysalis.Cbor.Serialization.Attributes;
 using Chrysalis.Cbor.Types;
 
-namespace SimpleDEX.Tx.Models;
+namespace SimpleDEX.Tx.Models.Cbor;
 
 [CborSerializable]
 [CborConstr(0)]
