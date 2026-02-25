@@ -13,7 +13,6 @@ public static class BuyTemplate
         BuyRequest request,
         ICardanoDataProvider provider,
         string scriptAddress,
-        string ownerAddress,
         TransactionInput orderUtxoRef,
         TransactionInput scriptRefUtxo,
         Value paymentValue,
@@ -21,9 +20,9 @@ public static class BuyTemplate
     {
         return TransactionTemplateBuilder<BuyRequest>
             .Create(provider)
-            .AddStaticParty("change", request.OwnerAddress, isChange: true)
+            .AddStaticParty("change", request.BuyerAddress, isChange: true)
             .AddStaticParty("contract", scriptAddress)
-            .AddStaticParty("owner", ownerAddress)
+            .AddStaticParty("seller", request.SellerAddress)
             .AddReferenceInput((options, _) =>
             {
                 options.From = "contract";
@@ -33,13 +32,12 @@ public static class BuyTemplate
             {
                 options.From = "contract";
                 options.UtxoRef = orderUtxoRef;
-                options.SetRedeemerBuilder<Buy>(
-                    (_, _, _) => new Buy(),
-                    RedeemerTag.Spend);
+                options.Id = "order";
+                options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Buy());
             })
             .AddOutput((options, _, _) =>
             {
-                options.To = "owner";
+                options.To = "seller";
                 options.Amount = paymentValue;
                 options.SetDatum(new DatumTag(orderTag));
             })

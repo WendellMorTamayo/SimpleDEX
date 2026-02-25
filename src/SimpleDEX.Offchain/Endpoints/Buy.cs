@@ -25,10 +25,6 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
         string scriptRefTxHash = Config["ScriptRef:TxHash"]!;
         ulong scriptRefTxIndex = ulong.Parse(Config["ScriptRef:TxIndex"]!);
 
-        // Extract owner PKH from owner address
-        WalletAddress ownerAddr = new(req.OwnerAddress);
-        string ownerAddress = req.OwnerAddress;
-
         // Parse OrderOutRef (format: "txhash#index")
         string[] outRefParts = req.OrderOutRef.Split('#');
         string orderTxHash = outRefParts[0];
@@ -67,7 +63,7 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
 
         // Build unsigned transaction
         TransactionTemplate<BuyRequest> template = BuyTemplate.Create(
-            req, provider, scriptAddress, ownerAddress, orderUtxoRef, scriptRefUtxo, paymentValue, orderTag);
+            req, provider, scriptAddress, orderUtxoRef, scriptRefUtxo, paymentValue, orderTag);
         Transaction unsignedTx = await template(req);
 
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();

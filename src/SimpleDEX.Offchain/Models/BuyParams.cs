@@ -1,7 +1,8 @@
 namespace SimpleDEX.Offchain.Models;
 
 public record BuyRequest(
-    string OwnerAddress,
+    string BuyerAddress,
+    string SellerAddress,
     string OrderOutRef,
     string AskSubject,
     ulong AskPrice);
