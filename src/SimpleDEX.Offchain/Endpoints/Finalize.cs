@@ -18,7 +18,6 @@ public class Finalize(
         AllowAnonymous();
 
         Description(d => d
-            .WithTags("Transaction")
             .Produces<string>(StatusCodes.Status200OK)
             .ProducesProblemFE(StatusCodes.Status400BadRequest)
             .ProducesProblemFE(StatusCodes.Status422UnprocessableEntity)
