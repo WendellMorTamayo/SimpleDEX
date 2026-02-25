@@ -5,7 +5,7 @@ using SimpleDEX.Offchain.Models;
 
 namespace SimpleDEX.Offchain.Templates;
 
-public static class DeployTemplate
+public static class OrderTemplate
 {
     public static TransactionTemplate<DeployRequest> Create(
         DeployRequest request,
