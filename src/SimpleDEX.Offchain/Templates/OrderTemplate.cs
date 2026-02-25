@@ -2,26 +2,28 @@ using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
 using SimpleDEX.Offchain.Models;
+using SimpleDEX.Offchain.Models.Cbor;
 
 namespace SimpleDEX.Offchain.Templates;
 
 public static class OrderTemplate
 {
-    public static TransactionTemplate<DeployRequest> Create(
-        DeployRequest request,
+    public static TransactionTemplate<OrderRequest> Create(
+        OrderRequest request,
         ICardanoDataProvider provider,
-        string contractAddress,
-        PlutusV3Script script)
+        string scriptAddress,
+        OrderDatum datum,
+        Value outputValue)
     {
-        return TransactionTemplateBuilder<DeployRequest>
+        return TransactionTemplateBuilder<OrderRequest>
             .Create(provider)
             .AddStaticParty("change", request.ChangeAddress, isChange: true)
-            .AddStaticParty("contract", contractAddress)
+            .AddStaticParty("contract", scriptAddress)
             .AddOutput((options, _, _) =>
             {
                 options.To = "contract";
-                options.Amount = new Lovelace(request.LockAmount);
-                options.Script = script;
+                options.Amount = outputValue;
+                options.SetDatum(datum);
             })
             .Build();
     }

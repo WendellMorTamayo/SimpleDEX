@@ -75,10 +75,6 @@
             {
               "title": "price",
               "$ref": "#/definitions/Int"
-            },
-            {
-              "title": "order_tag",
-              "$ref": "#/definitions/ByteArray"
             }
           ]
         }
@@ -88,7 +84,7 @@
       "title": "OrderRedeemer",
       "anyOf": [
         {
-          "title": "Order",
+          "title": "Buy",
           "dataType": "constructor",
           "index": 0,
           "fields": []

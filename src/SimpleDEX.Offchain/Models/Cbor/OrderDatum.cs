@@ -3,13 +3,12 @@ using Chrysalis.Cbor.Types;
 
 namespace SimpleDEX.Offchain.Models.Cbor;
 
-// Constr(0, [owner, offer, ask, price, order_tag])
+// Constr(0, [owner, offer, ask, price])
 [CborSerializable]
 [CborConstr(0)]
 public partial record OrderDatum(
     byte[] Owner,
     TokenId Offer,
     TokenId Ask,
-    ulong Price,
-    byte[] OrderTag
+    ulong Price
 ) : CborBase;

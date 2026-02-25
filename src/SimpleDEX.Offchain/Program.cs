@@ -1,10 +1,12 @@
+using Chrysalis.Tx.Extensions;
 using FastEndpoints;
 using Scalar.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddFastEndpoints();
 builder.Services.AddOpenApi();
+builder.Services.AddCardanoProvider(builder.Configuration);
 
 WebApplication app = builder.Build();
 

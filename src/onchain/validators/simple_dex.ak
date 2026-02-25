@@ -22,10 +22,6 @@ pub type OrderDatum {
   // Price per unit of offer token (in ask token units)
   // e.g. price = 5 means 1 offer token costs 5 ask tokens
   price: Int,
-  // Unique order tag: blake2b_256(tx_hash ++ output_index) from the UTxO that created this order
-  // Prevents double satisfaction — each order has a unique tag, so the seller payment output
-  // must reference this exact tag, making it impossible for one output to satisfy two validators
-  order_tag: ByteArray,
 }
 
 pub type OrderRedeemer {
@@ -124,7 +120,6 @@ fn mock_order(owner: ByteArray) -> OrderDatum {
     offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
     ask: mock_ask(),
     price: 100,
-    order_tag: #"",
   }
 }
 
