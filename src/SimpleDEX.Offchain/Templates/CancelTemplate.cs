@@ -20,22 +20,22 @@ public static class CancelTemplate
     {
         return TransactionTemplateBuilder<CancelRequest>
             .Create(provider)
-            .AddStaticParty("owner", request.Owner, isChange: true)
+            .AddStaticParty("change", request.Owner, isChange: true)
             .AddStaticParty("contract", scriptAddress)
             .AddReferenceInput((options, _) =>
             {
                 options.From = "contract";
                 options.UtxoRef = scriptReference;
-                options.Id = "deployRef";
 
             })
             .AddInput((options, _) =>
             {
                 options.From = "contract";
                 options.UtxoRef = orderReference;
-                options.SetRedeemerBuilder<Cancel>((_, _, _) => new Cancel());
                 options.Id = "unlockUtxo";
+                options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Cancel());
             })
+            .AddRequiredSigner("change")
             .Build();
     }
 }
