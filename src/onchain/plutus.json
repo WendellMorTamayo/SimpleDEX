@@ -1,0 +1,125 @@
+{
+  "preamble": {
+    "title": "saib/simple-dex",
+    "description": "Aiken contracts for project 'saib/simple-dex'",
+    "version": "0.0.0",
+    "plutusVersion": "v3",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.1.21+42babe5"
+    },
+    "license": "Apache-2.0"
+  },
+  "validators": [
+    {
+      "title": "simple_dex.simple_dex.spend",
+      "datum": {
+        "title": "datum",
+        "schema": {
+          "$ref": "#/definitions/simple_dex~1OrderDatum"
+        }
+      },
+      "redeemer": {
+        "title": "redeemer",
+        "schema": {
+          "$ref": "#/definitions/simple_dex~1OrderRedeemer"
+        }
+      },
+      "compiledCode": "59027101010029800aba2aba1aab9faab9eaab9dab9a48888896600264653001300700198039804000cc01c0092225980099b8748008c01cdd500144ca60026016003300b300c0019b87480012223322598009801800c566002601c6ea802600516403d15980099b87480080062b3001300e37540130028b201e8b201840302b30013001300b37540051332298009bae3010300e3754005375a6020602260226022601c6ea800a6002601c6ea800a6e50dd9802a4444b300130073011375401b132330010013758600c60266ea8030896600200314a115980099192cc004c02cc054dd5000c4c96600266e1d20043016375400315980099b8f375c6032602e6ea80080262b3001337120106530013756600260306ea80126eb8c004c060dd50044520009bae301a301837540109111199119800800801191919800800803112cc00400600713233225980099b910070028acc004cdc78038014400600c810226600a00a604a0088100dd7180f8009bab302000130210014080297adef6c602259800800c0122646644b30013372201000515980099b8f0080028800c01d01f44cc014014c09001101f1bae301e001375a603e002604000280f846034603600313371e00c6eb8c064c05cdd5000c528202a8a5040551640546012602c6ea800a2c80a0c05cc054dd5180b980a9baa00130160018a51899801001180b800a0244055132330010013758602a602c602c602c602c602c602c602c602c60266ea8030896600200314a115980099b8f375c602c00200d14a31330020023017001404880a90100c038c030dd50011180798081808000c5900a18059baa00718041baa0028b200c180380098019baa0078a4d13656400401",
+      "hash": "e072c243aa141d0b75ff4e721ff05978f5842d142898018ece004715"
+    },
+    {
+      "title": "simple_dex.simple_dex.else",
+      "redeemer": {
+        "schema": {}
+      },
+      "compiledCode": "59027101010029800aba2aba1aab9faab9eaab9dab9a48888896600264653001300700198039804000cc01c0092225980099b8748008c01cdd500144ca60026016003300b300c0019b87480012223322598009801800c566002601c6ea802600516403d15980099b87480080062b3001300e37540130028b201e8b201840302b30013001300b37540051332298009bae3010300e3754005375a6020602260226022601c6ea800a6002601c6ea800a6e50dd9802a4444b300130073011375401b132330010013758600c60266ea8030896600200314a115980099192cc004c02cc054dd5000c4c96600266e1d20043016375400315980099b8f375c6032602e6ea80080262b3001337120106530013756600260306ea80126eb8c004c060dd50044520009bae301a301837540109111199119800800801191919800800803112cc00400600713233225980099b910070028acc004cdc78038014400600c810226600a00a604a0088100dd7180f8009bab302000130210014080297adef6c602259800800c0122646644b30013372201000515980099b8f0080028800c01d01f44cc014014c09001101f1bae301e001375a603e002604000280f846034603600313371e00c6eb8c064c05cdd5000c528202a8a5040551640546012602c6ea800a2c80a0c05cc054dd5180b980a9baa00130160018a51899801001180b800a0244055132330010013758602a602c602c602c602c602c602c602c602c60266ea8030896600200314a115980099b8f375c602c00200d14a31330020023017001404880a90100c038c030dd50011180798081808000c5900a18059baa00718041baa0028b200c180380098019baa0078a4d13656400401",
+      "hash": "e072c243aa141d0b75ff4e721ff05978f5842d142898018ece004715"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "dataType": "bytes"
+    },
+    "Int": {
+      "dataType": "integer"
+    },
+    "cardano/assets/AssetName": {
+      "title": "AssetName",
+      "dataType": "bytes"
+    },
+    "cardano/assets/PolicyId": {
+      "title": "PolicyId",
+      "dataType": "bytes"
+    },
+    "simple_dex/OrderDatum": {
+      "title": "OrderDatum",
+      "anyOf": [
+        {
+          "title": "OrderDatum",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "owner",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "offer",
+              "$ref": "#/definitions/simple_dex~1TokenId"
+            },
+            {
+              "title": "ask",
+              "$ref": "#/definitions/simple_dex~1TokenId"
+            },
+            {
+              "title": "price",
+              "$ref": "#/definitions/Int"
+            },
+            {
+              "title": "order_tag",
+              "$ref": "#/definitions/ByteArray"
+            }
+          ]
+        }
+      ]
+    },
+    "simple_dex/OrderRedeemer": {
+      "title": "OrderRedeemer",
+      "anyOf": [
+        {
+          "title": "Buy",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Cancel",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        }
+      ]
+    },
+    "simple_dex/TokenId": {
+      "title": "TokenId",
+      "anyOf": [
+        {
+          "title": "TokenId",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "policy_id",
+              "$ref": "#/definitions/cardano~1assets~1PolicyId"
+            },
+            {
+              "title": "asset_name",
+              "$ref": "#/definitions/cardano~1assets~1AssetName"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

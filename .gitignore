@@ -1,0 +1,29 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# NuGet
+*.nupkg
+**/packages/
+
+# Config
+appsettings.json
+appsettings.*.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# Aiken
+artifacts/
+build/
+docs/
