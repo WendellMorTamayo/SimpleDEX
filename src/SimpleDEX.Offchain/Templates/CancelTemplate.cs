@@ -34,6 +34,6 @@ public static class CancelTemplate
                 options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Cancel());
             })
             .AddRequiredSigner("change")
-            .Build(Eval: false);
+            .Build(false);
     }
 }
