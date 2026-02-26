@@ -42,7 +42,8 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
 
         // Construct OrderDatum
         OrderDatum datum = new(
-            Owner: ownerAddress,
+            Owner: ownerPkh,
+            Destination: ownerAddress,
             Offer: new TokenId(offerPolicyId, offerAssetName),
             Ask: new TokenId(askPolicyId, askAssetName),
             Price: req.AskPrice

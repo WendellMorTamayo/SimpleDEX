@@ -1,4 +1,5 @@
 using Chrysalis.Cbor.Serialization;
+using SimpleDEX.Data.Extensions;
 using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Plutus.Address;
@@ -48,10 +49,8 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
             u.Outref.TransactionId.SequenceEqual(Convert.FromHexString(orderTxHash))
             && u.Outref.Index == orderTxIndex);
 
-        var txOutput = (Chrysalis.Cbor.Types.Cardano.Core.Transaction.PostAlonzoTransactionOutput)orderUtxo.Output;
-        InlineDatumOption inlineDatum = (InlineDatumOption)txOutput.Datum!;
-        OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(inlineDatum.Data.Value);
-        string sellerAddress = PlutusAddressToBech32(orderDatum.Owner, provider.NetworkType);
+        OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(orderUtxo.Output.Datum()!);
+        string sellerAddress = PlutusAddressToBech32(orderDatum.Destination, provider.NetworkType);
 
         // Parse ask subject
         (byte[] askPolicyId, byte[] askAssetName) = ParseSubject(req.AskSubject);

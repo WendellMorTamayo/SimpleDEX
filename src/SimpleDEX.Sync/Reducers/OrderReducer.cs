@@ -3,6 +3,7 @@ using Chrysalis.Cbor.Extensions.Cardano.Core;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Header;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
+using SimpleDEX.Data.Extensions;
 using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
@@ -20,8 +21,8 @@ public class OrderReducer(
     IConfiguration configuration
 ) : IReducer<Order>
 {
-    private readonly string _scriptAddress = configuration["ScriptAddress"]
-        ?? throw new InvalidOperationException("ScriptAddress not configured");
+    private readonly string _scriptHash = configuration["ScriptHash"]
+        ?? throw new InvalidOperationException("ScriptHash not configured");
 
     public async Task RollForwardAsync(Block block)
     {
@@ -120,18 +121,25 @@ public class OrderReducer(
 
     private bool IsScriptOutput(TransactionOutput output)
     {
-        byte[] addressBytes = output.Address();
-        return addressBytes.Length > 0
-            && Address.FromBytes(addressBytes).ToBech32() == _scriptAddress
-            && output.DatumOption() is not null;
+        try
+        {
+            Address address = new(output.Address());
+            if (!address.ToBech32().StartsWith("addr")) return false;
+
+            byte[]? pkh = address.GetPaymentKeyHash();
+            if (pkh is null) return false;
+
+            return Convert.ToHexStringLower(pkh) == _scriptHash
+                && output.Datum() is not null;
+        }
+        catch { return false; }
     }
 
     private static Order? TryParseOrder(string txHash, int index, TransactionOutput output, ulong slot)
     {
         try
         {
-            byte[] datumBytes = output.DatumOption()!.Data();
-            OrderDatum datum = CborSerializer.Deserialize<OrderDatum>(datumBytes);
+            OrderDatum datum = CborSerializer.Deserialize<OrderDatum>(output.Datum());
 
             return new Order(
                 OutRef: $"{txHash}#{index}",

@@ -1,6 +1,5 @@
-using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
-using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
+using SimpleDEX.Data.Extensions;
 using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
@@ -51,8 +50,8 @@ public class Cancel(ICardanoDataProvider provider) : Endpoint<CancelRequest, Can
             u.Outref.TransactionId.SequenceEqual(Convert.FromHexString(req.OrderTxHash))
             && u.Outref.Index == req.OrderIndex);
 
-        OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(orderUtxo.Output.DatumOption()!.Data());
-        string ownerAddress = PlutusAddressToBech32(orderDatum.Owner, provider.NetworkType);
+        OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(orderUtxo.Output.Datum()!);
+        string ownerAddress = PlutusAddressToBech32(orderDatum.Destination, provider.NetworkType);
 
         // Build unsigned transaction
         TransactionTemplate<CancelRequest> template = CancelTemplate.Create(

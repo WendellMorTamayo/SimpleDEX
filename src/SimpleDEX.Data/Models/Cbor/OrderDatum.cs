@@ -7,7 +7,8 @@ namespace SimpleDEX.Data.Models.Cbor;
 [CborSerializable]
 [CborConstr(0)]
 public partial record OrderDatum(
-    Address Owner,
+    byte[] Owner,
+    Address Destination,
     TokenId Offer,
     TokenId Ask,
     ulong Price

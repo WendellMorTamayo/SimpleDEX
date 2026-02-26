@@ -9,11 +9,8 @@
   <ItemGroup>
     <PackageReference Include="FastEndpoints" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Chrysalis" Version="1.1.0-alpha" />
-    <PackageReference Include="Chrysalis.Cbor.CodeGen" Version="1.1.0-alpha">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.3" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.12.47" />
   </ItemGroup>
 
