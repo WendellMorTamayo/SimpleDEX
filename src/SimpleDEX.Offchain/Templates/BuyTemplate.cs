@@ -13,6 +13,7 @@ public static class BuyTemplate
         BuyRequest request,
         ICardanoDataProvider provider,
         string scriptAddress,
+        string sellerAddress,
         TransactionInput orderUtxoRef,
         TransactionInput scriptRefUtxo,
         Value paymentValue,
@@ -22,7 +23,7 @@ public static class BuyTemplate
             .Create(provider)
             .AddStaticParty("change", request.BuyerAddress, isChange: true)
             .AddStaticParty("contract", scriptAddress)
-            .AddStaticParty("seller", request.SellerAddress)
+            .AddStaticParty("seller", sellerAddress)
             .AddReferenceInput((options, _) =>
             {
                 options.From = "contract";
@@ -41,7 +42,6 @@ public static class BuyTemplate
                 options.Amount = paymentValue;
                 options.SetDatum(new DatumTag(orderTag));
             })
-            .AddRequiredSigner("change")
-            .Build();
+            .Build(Eval: false);
     }
 }

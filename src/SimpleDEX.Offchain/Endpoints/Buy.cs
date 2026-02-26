@@ -1,12 +1,19 @@
 using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
-using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Types.Plutus.Address;
 using Chrysalis.Tx.Models;
+using Chrysalis.Tx.Models.Cbor;
+using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Utils;
 using FastEndpoints;
 using SimpleDEX.Offchain.Models;
 using SimpleDEX.Offchain.Models.Cbor;
 using SimpleDEX.Offchain.Templates;
+using Address = Chrysalis.Cbor.Types.Plutus.Address.Address;
+using Credential = Chrysalis.Cbor.Types.Plutus.Address.Credential;
+using Transaction = Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction;
+using TransactionInput = Chrysalis.Cbor.Types.Cardano.Core.Transaction.TransactionInput;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace SimpleDEX.Offchain.Endpoints;
@@ -15,7 +22,7 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
 {
     public override void Configure()
     {
-        Post("/api/buy");
+        Post("/api/v1/transactions/buy");
         AllowAnonymous();
     }
 
@@ -33,6 +40,18 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
         // Build UTxO references
         TransactionInput orderUtxoRef = new(Convert.FromHexString(orderTxHash), orderTxIndex);
         TransactionInput scriptRefUtxo = new(Convert.FromHexString(scriptRefTxHash), scriptRefTxIndex);
+
+        // TODO: Replace with indexed DB lookup once we have the indexer
+        // Fetch order UTxO to read seller address from datum (source of truth)
+        List<ResolvedInput> utxos = await provider.GetUtxosAsync([scriptAddress]);
+        ResolvedInput orderUtxo = utxos.First(u =>
+            u.Outref.TransactionId.SequenceEqual(Convert.FromHexString(orderTxHash))
+            && u.Outref.Index == orderTxIndex);
+
+        var txOutput = (Chrysalis.Cbor.Types.Cardano.Core.Transaction.PostAlonzoTransactionOutput)orderUtxo.Output;
+        InlineDatumOption inlineDatum = (InlineDatumOption)txOutput.Datum!;
+        OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(inlineDatum.Data.Value);
+        string sellerAddress = PlutusAddressToBech32(orderDatum.Owner, provider.NetworkType);
 
         // Parse ask subject
         (byte[] askPolicyId, byte[] askAssetName) = ParseSubject(req.AskSubject);
@@ -63,12 +82,36 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
 
         // Build unsigned transaction
         TransactionTemplate<BuyRequest> template = BuyTemplate.Create(
-            req, provider, scriptAddress, orderUtxoRef, scriptRefUtxo, paymentValue, orderTag);
+            req, provider, scriptAddress, sellerAddress, orderUtxoRef, scriptRefUtxo, paymentValue, orderTag);
         Transaction unsignedTx = await template(req);
 
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();
 
-        await Send.OkAsync(new BuyResponse(unsignedTxCbor), cancellation: ct);
+        await Send.ResponseAsync(new BuyResponse(unsignedTxCbor), cancellation: ct);
+    }
+
+    private static string PlutusAddressToBech32(Address plutusAddr, NetworkType networkType)
+    {
+        VerificationKey vk = (VerificationKey)plutusAddr.PaymentCredential;
+        byte[] paymentHash = vk.VerificationKeyHash;
+
+        byte[]? stakeHash = plutusAddr.StakeCredential switch
+        {
+            Some<Inline<Credential>> some => ((VerificationKey)some.Value.Value).VerificationKeyHash,
+            _ => null
+        };
+
+        AddressType addrType = stakeHash is not null
+            ? AddressType.Base
+            : AddressType.EnterprisePayment;
+
+        // WalletAddress header only supports Testnet/Mainnet nibbles;
+        // Preview/Preprod are testnet variants
+        NetworkType headerNetwork = networkType is NetworkType.Mainnet
+            ? NetworkType.Mainnet
+            : NetworkType.Testnet;
+
+        return new WalletAddress(headerNetwork, addrType, paymentHash, stakeHash).ToBech32();
     }
 
     private static (byte[] PolicyId, byte[] AssetName) ParseSubject(string subject)

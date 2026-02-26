@@ -1,5 +1,6 @@
 using Chrysalis.Cbor.Serialization.Attributes;
 using Chrysalis.Cbor.Types;
+using Chrysalis.Cbor.Types.Plutus.Address;
 
 namespace SimpleDEX.Offchain.Models.Cbor;
 
@@ -7,7 +8,7 @@ namespace SimpleDEX.Offchain.Models.Cbor;
 [CborSerializable]
 [CborConstr(0)]
 public partial record OrderDatum(
-    byte[] Owner,
+    Address Owner,
     TokenId Offer,
     TokenId Ask,
     ulong Price

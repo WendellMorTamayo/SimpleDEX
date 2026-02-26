@@ -1,11 +1,14 @@
 using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
-using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Types.Plutus.Address;
 using Chrysalis.Tx.Models;
 using FastEndpoints;
 using SimpleDEX.Offchain.Models;
 using SimpleDEX.Offchain.Models.Cbor;
 using SimpleDEX.Offchain.Templates;
+using Address = Chrysalis.Cbor.Types.Plutus.Address.Address;
+using Transaction = Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace SimpleDEX.Offchain.Endpoints;
@@ -14,7 +17,7 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
 {
     public override void Configure()
     {
-        Post("/api/order");
+        Post("/api/v1/transactions/order");
         AllowAnonymous();
     }
 
@@ -22,9 +25,16 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
     {
         string scriptAddress = Config["ScriptAddress"]!;
 
-        // Extract owner PKH from change address
+        // Build Plutus Address from change address (preserving staking credential if present)
         WalletAddress addr = new(req.ChangeAddress);
         byte[] ownerPkh = addr.GetPaymentKeyHash()!;
+        byte[]? stakeKeyHash = addr.GetStakeKeyHash();
+
+        Option<Inline<Credential>> stakeCredential = stakeKeyHash is not null
+            ? new Some<Inline<Credential>>(new Inline<Credential>(new VerificationKey(stakeKeyHash)))
+            : new None<Inline<Credential>>();
+
+        Address ownerAddress = new(new VerificationKey(ownerPkh), stakeCredential);
 
         // Parse offer subject (empty = ADA, otherwise first 56 hex = policyId, rest = assetName)
         (byte[] offerPolicyId, byte[] offerAssetName) = ParseSubject(req.OfferSubject);
@@ -32,7 +42,7 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
 
         // Construct OrderDatum
         OrderDatum datum = new(
-            Owner: ownerPkh,
+            Owner: ownerAddress,
             Offer: new TokenId(offerPolicyId, offerAssetName),
             Ask: new TokenId(askPolicyId, askAssetName),
             Price: req.AskPrice
@@ -61,9 +71,9 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
         TransactionTemplate<OrderRequest> template = OrderTemplate.Create(req, provider, scriptAddress, datum, outputValue);
         Transaction unsignedTx = await template(req);
 
-        string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();
+        string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx));
 
-        await Send.OkAsync(new OrderResponse(unsignedTxCbor), cancellation: ct);
+        await Send.ResponseAsync(new OrderResponse(unsignedTxCbor), cancellation: ct);
     }
 
     private static (byte[] PolicyId, byte[] AssetName) ParseSubject(string subject)

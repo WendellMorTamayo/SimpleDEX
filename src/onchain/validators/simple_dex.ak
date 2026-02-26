@@ -13,8 +13,8 @@ pub type TokenId {
 
 // The order listing stored as inline datum on the script UTxO
 pub type OrderDatum {
-  // Seller's pubkey hash — receives payment, can cancel
-  owner: ByteArray,
+  // Seller's address — receives payment, can cancel
+  owner: Address,
   // What token is being sold (the UTxO value holds the actual amount)
   offer: TokenId,
   // What token the seller wants in return
@@ -64,10 +64,8 @@ validator simple_dex {
         self.outputs
           |> list.any(
               fn(output) {
-                // Extract the pubkey hash — fails if output goes to a script address
-                expect VerificationKey(pkh) = output.address.payment_credential
-                // Check: payment goes to the seller
-                let is_sent_to_owner = pkh == owner
+                // Check: payment goes to the seller's full address
+                let is_sent_to_owner = output.address == owner
 
                 // Extract the inline datum and cast to ByteArray
                 // Fails if output has NoDatum or DatumHash (must be InlineDatum)
@@ -96,7 +94,10 @@ validator simple_dex {
             )
 
       // Cancel: only the original owner can reclaim by signing the transaction
-      Cancel -> list.has(self.extra_signatories, owner)
+      Cancel -> {
+        expect VerificationKey(owner_pkh) = owner.payment_credential
+        list.has(self.extra_signatories, owner_pkh)
+      }
     }
   }
 
@@ -114,13 +115,18 @@ fn mock_ask() -> TokenId {
 }
 
 // Mock order: seller wants 100 ask tokens for their offer tokens
-fn mock_order(owner: ByteArray) -> OrderDatum {
+fn mock_order(owner: Address) -> OrderDatum {
   OrderDatum {
     owner,
     offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
     ask: mock_ask(),
     price: 100,
   }
+}
+
+// Build a simple Address from a PKH (no staking credential)
+fn mock_address(pkh: ByteArray) -> Address {
+  Address { payment_credential: VerificationKey(pkh), stake_credential: None }
 }
 
 // Mock UTxO reference: tx_hash #"0000", output_index 0
@@ -139,7 +145,7 @@ fn mock_tag(utxo: OutputReference) -> ByteArray {
 
 // Happy path: correct recipient, correct tag, exact payment → should pass
 test buy_succeeds() {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
   let tag = mock_tag(utxo)
@@ -147,10 +153,7 @@ test buy_succeeds() {
   // Output pays alice the ask token at exact price, with correct tag
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -170,7 +173,7 @@ test buy_succeeds() {
 // Tag is from a different UTxO — validator computes tag from the actual utxo
 // being spent, so a mismatched tag fails with is_correct_tag ? False
 test buy_fails_wrong_tag() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
   // Tag computed from a different UTxO — won't match the validator's computed tag
@@ -179,10 +182,7 @@ test buy_fails_wrong_tag() fail {
 
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -201,17 +201,14 @@ test buy_fails_wrong_tag() fail {
 
 // Buyer pays 99 instead of 100 — fails with is_price_met ? False
 test buy_fails_insufficient_payment() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
   let tag = mock_tag(utxo)
 
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -230,17 +227,15 @@ test buy_fails_insufficient_payment() fail {
 
 // Payment goes to #"ff" instead of alice (#"01") — fails with is_sent_to_owner ? False
 test buy_fails_wrong_recipient() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
   let tag = mock_tag(utxo)
 
+  let eve = mock_address(#"ff")
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(#"ff"),
-        stake_credential: None,
-      },
+      address: eve,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -259,16 +254,13 @@ test buy_fails_wrong_recipient() fail {
 
 // Output has NoDatum instead of InlineDatum — crashes on expect InlineDatum(raw_datum)
 test buy_fails_no_datum() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
 
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -287,17 +279,14 @@ test buy_fails_no_datum() fail {
 
 // Buyer pays 150 instead of 100 — overpaying is allowed (>= check)
 test buy_succeeds_overpay() {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
   let tag = mock_tag(utxo)
 
   let output =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,
@@ -318,20 +307,21 @@ test buy_succeeds_overpay() {
 
 // Owner (alice) signs the transaction — cancel should pass
 test cancel_succeeds() {
-  let alice = #"01"
+  let alice_pkh = #"01"
+  let alice = mock_address(alice_pkh)
   let order = mock_order(alice)
   let utxo = mock_utxo()
 
   let tx =
     transaction.placeholder
-      |> fn(t) { Transaction { ..t, extra_signatories: [alice] } }
+      |> fn(t) { Transaction { ..t, extra_signatories: [alice_pkh] } }
 
   simple_dex.spend(Some(order), Cancel, utxo, tx)
 }
 
 // No one signed the transaction — cancel should fail
 test cancel_fails_no_signature() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
 
@@ -343,15 +333,15 @@ test cancel_fails_no_signature() fail {
 
 // Eve (#"ff") signs instead of alice (#"01") — cancel should fail
 test cancel_fails_wrong_signer() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
   let utxo = mock_utxo()
-  let eve = #"ff"
+  let eve_pkh = #"ff"
 
   // Eve's signature is present, but she's not the owner
   let tx =
     transaction.placeholder
-      |> fn(t) { Transaction { ..t, extra_signatories: [eve] } }
+      |> fn(t) { Transaction { ..t, extra_signatories: [eve_pkh] } }
 
   simple_dex.spend(Some(order), Cancel, utxo, tx)
 }
@@ -365,7 +355,7 @@ test cancel_fails_wrong_signer() fail {
 // Proves the tagging prevents the exploit — marked `fail` because
 // the combined result is False.
 test double_satisfaction_blocked() fail {
-  let alice = #"01"
+  let alice = mock_address(#"01")
   let order = mock_order(alice)
 
   // Two different UTxOs — different tx hashes, so different tags
@@ -378,10 +368,7 @@ test double_satisfaction_blocked() fail {
   // Single payment output — Eve tries to satisfy both orders with this
   let single_payment =
     Output {
-      address: Address {
-        payment_credential: VerificationKey(alice),
-        stake_credential: None,
-      },
+      address: alice,
       value: assets.from_asset(
         order.ask.policy_id,
         order.ask.asset_name,

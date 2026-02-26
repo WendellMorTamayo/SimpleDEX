@@ -17,7 +17,7 @@ public class SubmitTx(ICardanoDataProvider provider, IConfiguration config) : En
 {
     public override void Configure()
     {
-        Post("/api/submit");
+        Post("/api/v1/transactions/submit");
         AllowAnonymous();
     }
 

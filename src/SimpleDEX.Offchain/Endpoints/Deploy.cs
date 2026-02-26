@@ -16,7 +16,7 @@ public class Deploy(ICardanoDataProvider provider) : Endpoint<DeployRequest, Dep
 {
     public override void Configure()
     {
-        Post("/api/deploy");
+        Post("/api/v1/transactions/deploy");
         AllowAnonymous();
     }
 
@@ -61,6 +61,6 @@ public class Deploy(ICardanoDataProvider provider) : Endpoint<DeployRequest, Dep
 
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();
 
-        await Send.OkAsync(new DeployResponse(unsignedTxCbor, contractAddress, scriptHash), cancellation: ct);
+        await Send.ResponseAsync(new DeployResponse(unsignedTxCbor, contractAddress, scriptHash), cancellation: ct);
     }
 }

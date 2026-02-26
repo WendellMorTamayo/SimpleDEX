@@ -1,5 +1,3 @@
-// User Cancelling their order must receive as output the cancelled order
-using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
@@ -11,16 +9,16 @@ namespace SimpleDEX.Offchain.Templates;
 public static class CancelTemplate
 {
     public static TransactionTemplate<CancelRequest> Create(
-        CancelRequest request,
         ICardanoDataProvider provider,
-        string scriptAddress, //why is this string and not type Address?
+        string scriptAddress,
+        string ownerAddress,
         TransactionInput scriptReference,
         TransactionInput orderReference
     )
     {
         return TransactionTemplateBuilder<CancelRequest>
             .Create(provider)
-            .AddStaticParty("change", request.Owner, isChange: true)
+            .AddStaticParty("change", ownerAddress, isChange: true)
             .AddStaticParty("contract", scriptAddress)
             .AddReferenceInput((options, _) =>
             {
@@ -36,6 +34,6 @@ public static class CancelTemplate
                 options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Cancel());
             })
             .AddRequiredSigner("change")
-            .Build();
+            .Build(Eval: false);
     }
 }
