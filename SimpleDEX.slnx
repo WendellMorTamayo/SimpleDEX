@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/SimpleDEX.Data/SimpleDEX.Data.csproj" />
     <Project Path="src/SimpleDEX.Offchain/SimpleDEX.Offchain.csproj" />
+    <Project Path="src/SimpleDEX.Sync/SimpleDEX.Sync.csproj" />
   </Folder>
 </Solution>

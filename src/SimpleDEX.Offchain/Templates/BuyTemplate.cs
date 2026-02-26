@@ -2,8 +2,8 @@ using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
+using SimpleDEX.Data.Models.Cbor;
 using SimpleDEX.Offchain.Models;
-using SimpleDEX.Offchain.Models.Cbor;
 
 namespace SimpleDEX.Offchain.Templates;
 

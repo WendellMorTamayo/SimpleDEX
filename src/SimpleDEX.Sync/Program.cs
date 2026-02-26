@@ -1,6 +1,12 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
+using Argus.Sync.Data.Models;
+using Argus.Sync.Extensions;
+using SimpleDEX.Data;
 
-app.MapGet("/", () => "Hello World!");
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCardanoIndexer<SimpleDEXDbContext>(builder.Configuration);
+builder.Services.AddReducers<SimpleDEXDbContext, IReducerModel>(builder.Configuration);
+
+WebApplication app = builder.Build();
 
 app.Run();
