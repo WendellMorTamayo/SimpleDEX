@@ -21,8 +21,7 @@ pub type OrderDatum {
   offer: TokenId,
   // What token the seller wants in return
   ask: TokenId,
-  // Price per unit of offer token (in ask token units)
-  // e.g. price = 5 means 1 offer token costs 5 ask tokens
+  // Total amount of ask tokens required to buy this order
   price: Int,
 }
 

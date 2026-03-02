@@ -12,7 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using SimpleDEX.Data;
 using SimpleDEX.Data.Models.Cbor;
 using SimpleDEX.Data.Models;
-using Address = Chrysalis.Wallet.Models.Addresses.Address;
+using Chrysalis.Wallet.Models.Enums;
+using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace SimpleDEX.Sync.Reducers;
 
@@ -23,19 +24,20 @@ public class OrderReducer(
 {
     private readonly string _scriptHash = configuration["ScriptHash"]
         ?? throw new InvalidOperationException("ScriptHash not configured");
+    private readonly NetworkType _networkType = Enum.Parse<NetworkType>(configuration["NetworkType"] ?? "Preview");
 
     public async Task RollForwardAsync(Block block)
     {
         ulong slot = block.Header().HeaderBody().Slot();
 
-        List<Order> newOrders = CollectNewOrders(block, slot);
+        IEnumerable<Order> newOrders = CollectNewOrders(block, slot);
         Dictionary<string, TransactionInput> inputsByOutRef = CollectInputOutRefs(block);
 
-        if (newOrders.Count == 0 && inputsByOutRef.Count == 0) return;
+        if (!newOrders.Any() && inputsByOutRef.Count == 0) return;
 
         await using SimpleDEXDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        if (newOrders.Count > 0)
+        if (newOrders.Any())
             dbContext.Orders.AddRange(newOrders);
 
         if (inputsByOutRef.Count > 0)
@@ -123,7 +125,7 @@ public class OrderReducer(
     {
         try
         {
-            Address address = new(output.Address());
+            WalletAddress address = new(output.Address());
             if (!address.ToBech32().StartsWith("addr")) return false;
 
             byte[]? pkh = address.GetPaymentKeyHash();
@@ -135,7 +137,7 @@ public class OrderReducer(
         catch { return false; }
     }
 
-    private static Order? TryParseOrder(string txHash, int index, TransactionOutput output, ulong slot)
+    private Order? TryParseOrder(string txHash, int index, TransactionOutput output, ulong slot)
     {
         try
         {
@@ -143,7 +145,8 @@ public class OrderReducer(
 
             return new Order(
                 OutRef: $"{txHash}#{index}",
-                OwnerAddress: Address.FromBytes(output.Address()).ToBech32(),
+                OwnerPkh: Convert.ToHexStringLower(datum.Owner),
+                DestinationAddress: datum.Destination.ToBech32(_networkType),
                 OfferSubject: Convert.ToHexStringLower(datum.Offer.PolicyId) + Convert.ToHexStringLower(datum.Offer.AssetName),
                 AskSubject: Convert.ToHexStringLower(datum.Ask.PolicyId) + Convert.ToHexStringLower(datum.Ask.AssetName),
                 Price: datum.Price,

@@ -2,7 +2,8 @@ namespace SimpleDEX.Offchain.Models;
 
 public record OrderDto(
     string OutRef,
-    string OwnerAddress,
+    string OwnerPkh,
+    string DestinationAddress,
     string OfferSubject,
     string AskSubject,
     ulong Price,

@@ -51,7 +51,7 @@ public class Cancel(ICardanoDataProvider provider) : Endpoint<CancelRequest, Can
             && u.Outref.Index == req.OrderIndex);
 
         OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(orderUtxo.Output.Datum()!);
-        string ownerAddress = PlutusAddressToBech32(orderDatum.Destination, provider.NetworkType);
+        string ownerAddress = orderDatum.Destination.ToBech32(provider.NetworkType);
 
         // Build unsigned transaction
         TransactionTemplate<CancelRequest> template = CancelTemplate.Create(
@@ -61,29 +61,5 @@ public class Cancel(ICardanoDataProvider provider) : Endpoint<CancelRequest, Can
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();
 
         await Send.ResponseAsync(new CancelResponse(unsignedTxCbor), cancellation: ct);
-    }
-
-    private static string PlutusAddressToBech32(Address plutusAddr, NetworkType networkType)
-    {
-        VerificationKey vk = (VerificationKey)plutusAddr.PaymentCredential;
-        byte[] paymentHash = vk.VerificationKeyHash;
-
-        byte[]? stakeHash = plutusAddr.StakeCredential switch
-        {
-            Some<Inline<Credential>> some => ((VerificationKey)some.Value.Value).VerificationKeyHash,
-            _ => null
-        };
-
-        AddressType addrType = stakeHash is not null
-            ? AddressType.Base
-            : AddressType.EnterprisePayment;
-
-        // WalletAddress header only supports Testnet/Mainnet nibbles;
-        // Preview/Preprod are testnet variants
-        NetworkType headerNetwork = networkType is NetworkType.Mainnet
-            ? NetworkType.Mainnet
-            : NetworkType.Testnet;
-
-        return new WalletAddress(headerNetwork, addrType, paymentHash, stakeHash).ToBech32();
     }
 }

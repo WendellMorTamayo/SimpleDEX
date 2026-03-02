@@ -50,7 +50,7 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
             && u.Outref.Index == orderTxIndex);
 
         OrderDatum orderDatum = CborSerializer.Deserialize<OrderDatum>(orderUtxo.Output.Datum()!);
-        string sellerAddress = PlutusAddressToBech32(orderDatum.Destination, provider.NetworkType);
+        string sellerAddress = orderDatum.Destination.ToBech32(provider.NetworkType);
 
         // Parse ask subject
         (byte[] askPolicyId, byte[] askAssetName) = ParseSubject(req.AskSubject);
@@ -87,30 +87,6 @@ public class Buy(ICardanoDataProvider provider) : Endpoint<BuyRequest, BuyRespon
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx)).ToLowerInvariant();
 
         await Send.ResponseAsync(new BuyResponse(unsignedTxCbor), cancellation: ct);
-    }
-
-    private static string PlutusAddressToBech32(Address plutusAddr, NetworkType networkType)
-    {
-        VerificationKey vk = (VerificationKey)plutusAddr.PaymentCredential;
-        byte[] paymentHash = vk.VerificationKeyHash;
-
-        byte[]? stakeHash = plutusAddr.StakeCredential switch
-        {
-            Some<Inline<Credential>> some => ((VerificationKey)some.Value.Value).VerificationKeyHash,
-            _ => null
-        };
-
-        AddressType addrType = stakeHash is not null
-            ? AddressType.Base
-            : AddressType.EnterprisePayment;
-
-        // WalletAddress header only supports Testnet/Mainnet nibbles;
-        // Preview/Preprod are testnet variants
-        NetworkType headerNetwork = networkType is NetworkType.Mainnet
-            ? NetworkType.Mainnet
-            : NetworkType.Testnet;
-
-        return new WalletAddress(headerNetwork, addrType, paymentHash, stakeHash).ToBech32();
     }
 
     private static (byte[] PolicyId, byte[] AssetName) ParseSubject(string subject)

@@ -11,7 +11,7 @@ public class ListOrdersRequest
 }
 
 public record ListOrdersResponse(
-    List<OrderDto> Items,
+    IEnumerable<OrderDto> Items,
     int Page,
     int PageSize,
     int TotalCount

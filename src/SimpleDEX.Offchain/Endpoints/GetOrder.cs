@@ -32,7 +32,8 @@ public class GetOrder(SimpleDEXDbContext db) : Endpoint<GetOrderRequest, OrderDt
 
         await Send.ResponseAsync(new OrderDto(
             order.OutRef,
-            order.OwnerAddress,
+            order.OwnerPkh,
+            order.DestinationAddress,
             order.OfferSubject,
             order.AskSubject,
             order.Price,

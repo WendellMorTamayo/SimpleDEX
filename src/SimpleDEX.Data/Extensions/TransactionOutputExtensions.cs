@@ -1,3 +1,4 @@
+using System.Formats.Cbor;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using SimpleDEX.Data.Models;
@@ -12,6 +13,13 @@ public static class TransactionOutputExtensions
 
         if (datum.DatumType != DatumType.Inline)
             return datum.RawData;
+
+        CborReader reader = new(datum.RawData);
+        if (reader.PeekState() == CborReaderState.Tag)
+        {
+            CborTag tag = reader.ReadTag();
+            if (tag == (CborTag)24) return reader.ReadByteString();
+        }
 
         return datum.RawData?.ToArray();
     }

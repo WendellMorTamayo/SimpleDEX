@@ -4,7 +4,8 @@ namespace SimpleDEX.Data.Models;
 
 public record Order(
     string OutRef,
-    string OwnerAddress,
+    string OwnerPkh,
+    string DestinationAddress,
     string OfferSubject,
     string AskSubject,
     ulong Price,

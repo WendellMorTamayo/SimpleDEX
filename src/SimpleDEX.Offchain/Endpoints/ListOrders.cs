@@ -1,3 +1,4 @@
+using Chrysalis.Wallet.Models.Addresses;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using SimpleDEX.Data;
@@ -11,7 +12,7 @@ public class ListOrders(SimpleDEXDbContext db) : Endpoint<ListOrdersRequest, Lis
 {
     public override void Configure()
     {
-        Get("/api/v1/orders");
+        Post("/api/v1/orders");
         AllowAnonymous();
     }
 
@@ -33,17 +34,21 @@ public class ListOrders(SimpleDEXDbContext db) : Endpoint<ListOrdersRequest, Lis
             query = query.Where(o => o.AskSubject == req.AskSubject);
 
         if (!string.IsNullOrEmpty(req.OwnerAddress))
-            query = query.Where(o => o.OwnerAddress == req.OwnerAddress);
+        {
+            string ownerPkh = Convert.ToHexStringLower(new Address(req.OwnerAddress).GetPaymentKeyHash()!);
+            query = query.Where(o => o.OwnerPkh == ownerPkh);
+        }
 
         int totalCount = await query.CountAsync(ct);
 
-        List<OrderDto> items = await query
+        IEnumerable<OrderDto> items = await query
             .OrderByDescending(o => o.Slot)
             .Skip((req.Page - 1) * req.PageSize)
             .Take(req.PageSize)
             .Select(o => new OrderDto(
                 o.OutRef,
-                o.OwnerAddress,
+                o.OwnerPkh,
+                o.DestinationAddress,
                 o.OfferSubject,
                 o.AskSubject,
                 o.Price,
