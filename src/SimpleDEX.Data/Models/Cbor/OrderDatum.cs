@@ -9,7 +9,7 @@ namespace SimpleDEX.Data.Models.Cbor;
 public partial record OrderDatum(
     byte[] Owner,
     Address Destination,
-    TokenId Offer,
+    Unit Offer,
     TokenId Ask,
     RationalC Price
 ) : CborBase;

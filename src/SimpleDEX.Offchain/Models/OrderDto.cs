@@ -6,6 +6,7 @@ public record OrderDto(
     string DestinationAddress,
     string OfferSubject,
     string AskSubject,
+    ulong OfferAmount,
     ulong PriceNum,
     ulong PriceDen,
     string ScriptHash,

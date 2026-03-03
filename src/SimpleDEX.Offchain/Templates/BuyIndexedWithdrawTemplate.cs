@@ -1,11 +1,6 @@
-using Chrysalis.Cbor.Types;
-using Chrysalis.Cbor.Types.Cardano.Core.Common;
-using Chrysalis.Cbor.Types.Cardano.Core.Protocol;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
-using Chrysalis.Tx.Models.Cbor;
-using Chrysalis.Wallet.Utils;
 using SimpleDEX.Data.Models.Cbor;
 using SimpleDEX.Offchain.Models;
 
@@ -21,11 +16,7 @@ public static class BuyIndexedWithdrawTemplate
         List<BuyOrderItem> items,
         byte[] scriptHash)
     {
-        // Build reward address: 0xF0 header + script hash, bech32 with stake_test prefix
-        byte[] rewardAddressBytes = new byte[1 + scriptHash.Length];
-        rewardAddressBytes[0] = 0xF0;
-        Buffer.BlockCopy(scriptHash, 0, rewardAddressBytes, 1, scriptHash.Length);
-        string rewardAddress = Bech32Util.Encode(rewardAddressBytes, "stake_test");
+        string rewardAddress = TemplateUtils.BuildRewardAddress(scriptHash);
 
         TransactionTemplateBuilder<BuyRequest> builder = TransactionTemplateBuilder<BuyRequest>
             .Create(provider)
@@ -37,39 +28,77 @@ public static class BuyIndexedWithdrawTemplate
                 options.From = "contract";
                 options.UtxoRef = scriptRefUtxo;
             })
-            .AddWithdrawal((options, _) =>
-            {
-                options.From = "reward";
-                options.Amount = 0;
-                options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Reward, 0, new PlutusVoid(), new ExUnits(500000, 200000000));
-            });
-
-        // Add inputs and outputs with output_index redeemer
-        int idx = 0;
-        foreach (BuyOrderItem item in items)
-        {
-            int outputIndex = idx;
-            string sellerParty = $"seller_{idx}";
-            string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
-
-            builder.AddStaticParty(sellerParty, item.SellerAddress);
-            builder.AddInput((options, _) =>
-            {
-                options.From = "contract";
-                options.UtxoRef = item.OrderUtxoRef;
-                options.Id = inputId;
-                options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new IndexedBuy((ulong)outputIndex), new ExUnits(500000, 200000000));
-            });
-            builder.AddOutput((options, _, _) =>
-            {
-                options.To = sellerParty;
-                options.Amount = item.PaymentValue;
-            });
-            idx++;
-        }
+            .AddWithdrawal((options, _) => SetupWithdrawal(options))
+            .ProcessBuyOrders(items);
 
         return builder.Build(false);
     }
+
+    #region Withdrawal Setup
+
+    private static void SetupWithdrawal(WithdrawalOptions<BuyRequest> options)
+    {
+        options.From = "reward";
+        options.Amount = 0;
+        options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new PlutusVoid());
+    }
+
+    #endregion
+
+    #region Input/Output Setup
+
+    private static TransactionTemplateBuilder<BuyRequest> ProcessBuyOrders(
+        this TransactionTemplateBuilder<BuyRequest> builder,
+        List<BuyOrderItem> items)
+    {
+        int idx = 0;
+        foreach (BuyOrderItem item in items)
+        {
+            string sellerParty = $"seller_{idx}";
+            string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
+            string outputId = $"payment_{idx}";
+
+            builder.AddStaticParty(sellerParty, item.SellerAddress);
+            builder.AddInput(CreateInput(item, inputId, outputId));
+            builder.AddOutput(CreateOutput(item, sellerParty, inputId, outputId));
+            idx++;
+        }
+
+        return builder;
+    }
+
+    private static InputConfig<BuyRequest> CreateInput(BuyOrderItem item, string inputId, string outputId)
+    {
+        return (options, _) =>
+        {
+            options.From = "contract";
+            options.UtxoRef = item.OrderUtxoRef;
+            options.Id = inputId;
+            options.SetRedeemerBuilder((mapping, parameters, txBuilder) => CreateIndexedBuyRedeemer(mapping, inputId, outputId));
+        };
+    }
+
+    private static OutputConfig<BuyRequest> CreateOutput(BuyOrderItem item, string sellerParty, string inputId, string outputId)
+    {
+        return (options, _, _) =>
+        {
+            options.To = sellerParty;
+            options.Amount = item.PaymentValue;
+            options.AssociatedInputId = inputId;
+            options.Id = outputId;
+        };
+    }
+
+    #endregion
+
+    #region Redeemer Creation
+
+    private static IndexedBuy CreateIndexedBuyRedeemer(InputOutputMapping mapping, string inputId, string outputId)
+    {
+        (ulong _, Dictionary<string, ulong> outputIndexes) = mapping.GetInput(inputId);
+        ulong resolvedOutputIndex = outputIndexes[outputId];
+        return new IndexedBuy(resolvedOutputIndex);
+    }
+
+    #endregion
 }

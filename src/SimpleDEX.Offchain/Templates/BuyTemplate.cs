@@ -1,10 +1,7 @@
-using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
-using Chrysalis.Cbor.Types.Cardano.Core.Protocol;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
-using Chrysalis.Tx.Models.Cbor;
 using SimpleDEX.Data.Models.Cbor;
 using SimpleDEX.Offchain.Models;
 
@@ -33,32 +30,54 @@ public static class BuyTemplate
             {
                 options.From = "contract";
                 options.UtxoRef = scriptRefUtxo;
-            });
+            })
+            .ProcessBuyOrders(items);
 
+        return builder.Build(false);
+    }
+
+    #region Input/Output Setup
+
+    private static TransactionTemplateBuilder<BuyRequest> ProcessBuyOrders(
+        this TransactionTemplateBuilder<BuyRequest> builder,
+        List<BuyOrderItem> items)
+    {
         int idx = 0;
         foreach (BuyOrderItem item in items)
         {
             string sellerParty = $"seller_{idx}";
-            string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
 
             builder.AddStaticParty(sellerParty, item.SellerAddress);
-            builder.AddInput((options, _) =>
-            {
-                options.From = "contract";
-                options.UtxoRef = item.OrderUtxoRef;
-                options.Id = inputId;
-                options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new Buy(), new ExUnits(500000, 200000000));
-            });
-            builder.AddOutput((options, _, _) =>
-            {
-                options.To = sellerParty;
-                options.Amount = item.PaymentValue;
-                options.SetDatum(new DatumTag(item.OrderTag));
-            });
+            builder.AddInput(CreateInput(item));
+            builder.AddOutput(CreateOutput(item, sellerParty));
             idx++;
         }
 
-        return builder.Build(false);
+        return builder;
     }
+
+    private static InputConfig<BuyRequest> CreateInput(BuyOrderItem item)
+    {
+        string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
+
+        return (options, _) =>
+        {
+            options.From = "contract";
+            options.UtxoRef = item.OrderUtxoRef;
+            options.Id = inputId;
+            options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Buy());
+        };
+    }
+
+    private static OutputConfig<BuyRequest> CreateOutput(BuyOrderItem item, string sellerParty)
+    {
+        return (options, _, _) =>
+        {
+            options.To = sellerParty;
+            options.Amount = item.PaymentValue;
+            options.SetDatum(new DatumTag(item.OrderTag));
+        };
+    }
+
+    #endregion
 }

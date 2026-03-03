@@ -53,7 +53,7 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
             OrderDatum datum = new(
                 Owner: ownerPkh,
                 Destination: ownerAddress,
-                Offer: new TokenId(offerPolicyId, offerAssetName),
+                Offer: new Unit(offerPolicyId, offerAssetName, orderItem.OfferAmount),
                 Ask: new TokenId(askPolicyId, askAssetName),
                 Price: new RationalC(orderItem.PriceNum, orderItem.PriceDen)
             );

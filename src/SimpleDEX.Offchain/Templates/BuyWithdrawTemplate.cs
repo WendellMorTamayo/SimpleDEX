@@ -1,6 +1,4 @@
-using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
-using Chrysalis.Cbor.Types.Cardano.Core.Protocol;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
@@ -21,11 +19,7 @@ public static class BuyWithdrawTemplate
         List<BuyOrderItem> items,
         byte[] scriptHash)
     {
-        // Build reward address: 0xF0 header + script hash, bech32 with stake_test prefix
-        byte[] rewardAddressBytes = new byte[1 + scriptHash.Length];
-        rewardAddressBytes[0] = 0xF0;
-        Buffer.BlockCopy(scriptHash, 0, rewardAddressBytes, 1, scriptHash.Length);
-        string rewardAddress = Bech32Util.Encode(rewardAddressBytes, "stake_test");
+        string rewardAddress = TemplateUtils.BuildRewardAddress(scriptHash);
 
         TransactionTemplateBuilder<BuyRequest> builder = TransactionTemplateBuilder<BuyRequest>
             .Create(provider)
@@ -37,38 +31,65 @@ public static class BuyWithdrawTemplate
                 options.From = "contract";
                 options.UtxoRef = scriptRefUtxo;
             })
-            .AddWithdrawal((options, _) =>
-            {
-                options.From = "reward";
-                options.Amount = 0;
-                options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Reward, 0, new PlutusVoid(), new ExUnits(500000, 200000000));
-            });
+            .AddWithdrawal((options, _) => SetupWithdrawal(options))
+            .ProcessBuyOrders(items);
 
+        return builder.Build(false);
+    }
+
+    #region Withdrawal Setup
+
+    private static void SetupWithdrawal(WithdrawalOptions<BuyRequest> options)
+    {
+        options.From = "reward";
+        options.Amount = 0;
+        options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new PlutusVoid());
+    }
+
+    #endregion
+
+    #region Input/Output Setup
+
+    private static TransactionTemplateBuilder<BuyRequest> ProcessBuyOrders(
+        this TransactionTemplateBuilder<BuyRequest> builder,
+        List<BuyOrderItem> items)
+    {
         int idx = 0;
         foreach (BuyOrderItem item in items)
         {
             string sellerParty = $"seller_{idx}";
-            string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
 
             builder.AddStaticParty(sellerParty, item.SellerAddress);
-            builder.AddInput((options, _) =>
-            {
-                options.From = "contract";
-                options.UtxoRef = item.OrderUtxoRef;
-                options.Id = inputId;
-                options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new Buy(), new ExUnits(500000, 200000000));
-            });
-            builder.AddOutput((options, _, _) =>
-            {
-                options.To = sellerParty;
-                options.Amount = item.PaymentValue;
-                options.SetDatum(new DatumTag(item.OrderTag));
-            });
+            builder.AddInput(CreateInput(item));
+            builder.AddOutput(CreateOutput(item, sellerParty));
             idx++;
         }
 
-        return builder.Build(false);
+        return builder;
     }
+
+    private static InputConfig<BuyRequest> CreateInput(BuyOrderItem item)
+    {
+        string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
+
+        return (options, _) =>
+        {
+            options.From = "contract";
+            options.UtxoRef = item.OrderUtxoRef;
+            options.Id = inputId;
+            options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Buy());
+        };
+    }
+
+    private static OutputConfig<BuyRequest> CreateOutput(BuyOrderItem item, string sellerParty)
+    {
+        return (options, _, _) =>
+        {
+            options.To = sellerParty;
+            options.Amount = item.PaymentValue;
+            options.SetDatum(new DatumTag(item.OrderTag));
+        };
+    }
+
+    #endregion
 }

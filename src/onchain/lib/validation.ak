@@ -28,8 +28,10 @@ pub fn validate_buy_indexed(
       order.offer.asset_name,
     )
 
+  expect offer_quantity >= order.offer.quantity
+
   let required_payment =
-    ( offer_quantity * order.price.num + order.price.den - 1 ) / order.price.den
+    ( order.offer.quantity * order.price.num + order.price.den - 1 ) / order.price.den
 
   let is_sent_to_owner = output.address == order.destination
 
@@ -62,8 +64,10 @@ pub fn validate_buy(
       order.offer.asset_name,
     )
 
+  expect offer_quantity >= order.offer.quantity
+
   let required_payment =
-    ( offer_quantity * order.price.num + order.price.den - 1 ) / order.price.den
+    ( order.offer.quantity * order.price.num + order.price.den - 1 ) / order.price.den
 
   self.outputs
     |> list.any(

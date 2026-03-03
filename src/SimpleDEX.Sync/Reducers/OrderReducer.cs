@@ -146,12 +146,17 @@ public class OrderReducer(
         {
             OrderDatum datum = CborSerializer.Deserialize<OrderDatum>(output.Datum());
 
+            string offerSubject = Convert.ToHexStringLower(datum.Offer.PolicyId)
+                + Convert.ToHexStringLower(datum.Offer.AssetName);
+            ulong offerAmount = datum.Offer.Quantity;
+
             return new Order(
                 OutRef: $"{txHash}#{index}",
                 OwnerPkh: Convert.ToHexStringLower(datum.Owner),
                 DestinationAddress: datum.Destination.ToBech32(_networkType),
-                OfferSubject: Convert.ToHexStringLower(datum.Offer.PolicyId) + Convert.ToHexStringLower(datum.Offer.AssetName),
+                OfferSubject: offerSubject,
                 AskSubject: Convert.ToHexStringLower(datum.Ask.PolicyId) + Convert.ToHexStringLower(datum.Ask.AssetName),
+                OfferAmount: offerAmount,
                 PriceNum: datum.Price.Num,
                 PriceDen: datum.Price.Den,
                 ScriptHash: scriptHash,
@@ -174,6 +179,18 @@ public class OrderReducer(
                 _ => null
             };
         }
-        catch { return null; }
+        catch
+        {
+            try
+            {
+                return CborSerializer.Deserialize<IndexedOrderRedeemer>(redeemer.Data.Raw!.Value) switch
+                {
+                    IndexedBuy => OrderStatus.Filled,
+                    IndexedCancel => OrderStatus.Cancelled,
+                    _ => null
+                };
+            }
+            catch { return null; }
+        }
     }
 }

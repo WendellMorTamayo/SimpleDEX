@@ -54,6 +54,7 @@ public class ListOrders(SimpleDEXDbContext db) : Endpoint<ListOrdersRequest, Lis
                 o.DestinationAddress,
                 o.OfferSubject,
                 o.AskSubject,
+                o.OfferAmount,
                 o.PriceNum,
                 o.PriceDen,
                 o.ScriptHash,

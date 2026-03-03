@@ -1,7 +1,7 @@
 use cardano/assets
 use cardano/transaction.{InlineDatum, Output, OutputReference, Transaction}
 use simple_dex
-use types.{OrderDatum, Buy, Cancel, TokenId, RationalC}
+use types.{OrderDatum, Buy, Cancel, TokenId, Unit, RationalC}
 use tests/utils.{mock_ask, mock_order, mock_input, mock_address, mock_utxo,
   mock_tag}
 
@@ -315,7 +315,7 @@ test buy_succeeds_rational_price() {
     OrderDatum {
       owner: #"01",
       destination: alice,
-      offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
+      offer: Unit { policy_id: #"aa", asset_name: #"bb", quantity: 10 },
       ask: mock_ask(),
       price: RationalC { num: 3, den: 2 },
     }
@@ -356,7 +356,7 @@ test buy_succeeds_rational_price_ceiling() {
     OrderDatum {
       owner: #"01",
       destination: alice,
-      offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
+      offer: Unit { policy_id: #"aa", asset_name: #"bb", quantity: 7 },
       ask: mock_ask(),
       price: RationalC { num: 3, den: 2 },
     }
@@ -397,7 +397,7 @@ test buy_fails_rational_price_underpay() fail {
     OrderDatum {
       owner: #"01",
       destination: alice,
-      offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
+      offer: Unit { policy_id: #"aa", asset_name: #"bb", quantity: 7 },
       ask: mock_ask(),
       price: RationalC { num: 3, den: 2 },
     }
@@ -422,6 +422,39 @@ test buy_fails_rational_price_underpay() fail {
           Transaction {
             ..t,
             inputs: [mock_input(utxo, order, offer_qty)],
+            outputs: [output],
+          }
+        }
+
+  simple_dex.simple_dex.spend(Some(order), Buy, utxo, tx)
+}
+
+// Datum declares quantity 100 but UTxO only has 50 — should fail
+test buy_fails_quantity_mismatch() fail {
+  let alice = mock_address(#"01")
+  let order = mock_order(#"01", alice)
+  let utxo = mock_utxo()
+  let tag = mock_tag(utxo)
+
+  // order.offer.quantity is 100 (from mock_order), but UTxO has only 50
+  let output =
+    Output {
+      address: alice,
+      value: assets.from_asset(
+        order.ask.policy_id,
+        order.ask.asset_name,
+        50,
+      ),
+      datum: InlineDatum(tag),
+      reference_script: None,
+    }
+
+  let tx =
+    transaction.placeholder
+      |> fn(t) {
+          Transaction {
+            ..t,
+            inputs: [mock_input(utxo, order, 50)],
             outputs: [output],
           }
         }

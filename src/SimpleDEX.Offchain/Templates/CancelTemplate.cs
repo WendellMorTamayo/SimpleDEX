@@ -23,23 +23,41 @@ public static class CancelTemplate
             {
                 options.From = "contract";
                 options.UtxoRef = scriptReference;
-            });
-
-        int idx = 0;
-        foreach (TransactionInput orderRef in orderReferences)
-        {
-            string inputId = $"cancel_{idx}";
-            builder.AddInput((options, _) =>
-            {
-                options.From = "contract";
-                options.UtxoRef = orderRef;
-                options.Id = inputId;
-                options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Cancel());
-            });
-            idx++;
-        }
+            })
+            .ProcessCancelOrders(orderReferences);
 
         builder.AddRequiredSigner("change");
         return builder.Build(false);
     }
+
+    #region Input Setup
+
+    private static TransactionTemplateBuilder<CancelRequest> ProcessCancelOrders(
+        this TransactionTemplateBuilder<CancelRequest> builder,
+        List<TransactionInput> orderReferences)
+    {
+        int idx = 0;
+        foreach (TransactionInput orderRef in orderReferences)
+        {
+            builder.AddInput(CreateInput(orderRef, idx));
+            idx++;
+        }
+
+        return builder;
+    }
+
+    private static InputConfig<CancelRequest> CreateInput(TransactionInput orderRef, int idx)
+    {
+        string inputId = $"cancel_{idx}";
+
+        return (options, _) =>
+        {
+            options.From = "contract";
+            options.UtxoRef = orderRef;
+            options.Id = inputId;
+            options.SetRedeemerBuilder((mapping, parameters, txBuilder) => new Cancel());
+        };
+    }
+
+    #endregion
 }

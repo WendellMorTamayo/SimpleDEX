@@ -3,7 +3,7 @@ use aiken/crypto
 use cardano/address.{Address, Script, VerificationKey}
 use cardano/assets
 use cardano/transaction.{InlineDatum, Input, Output, OutputReference}
-use types.{OrderDatum, TokenId, RationalC}
+use types.{OrderDatum, TokenId, Unit, RationalC}
 
 pub fn mock_ask() -> TokenId {
   TokenId { policy_id: #"cc", asset_name: #"dd" }
@@ -13,7 +13,7 @@ pub fn mock_order(owner_pkh: ByteArray, destination: Address) -> OrderDatum {
   OrderDatum {
     owner: owner_pkh,
     destination,
-    offer: TokenId { policy_id: #"aa", asset_name: #"bb" },
+    offer: Unit { policy_id: #"aa", asset_name: #"bb", quantity: 100 },
     ask: mock_ask(),
     price: RationalC { num: 1, den: 1 },
   }

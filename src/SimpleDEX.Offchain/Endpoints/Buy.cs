@@ -89,9 +89,7 @@ public class Buy(ICardanoDataProvider provider, SimpleDEXDbContext db) : Endpoin
             byte[] askPolicyId = orderDatum.Ask.PolicyId;
             byte[] askAssetName = orderDatum.Ask.AssetName;
 
-            string offerSubject = Convert.ToHexStringLower(orderDatum.Offer.PolicyId)
-                + Convert.ToHexStringLower(orderDatum.Offer.AssetName);
-            ulong offerQty = orderUtxo.Output.Amount().QuantityOf(offerSubject) ?? 0;
+            ulong offerQty = orderDatum.Offer.Quantity;
 
             // Use requested amount if provided, otherwise full offer quantity
             ulong buyQty = orderReq.Amount ?? offerQty;

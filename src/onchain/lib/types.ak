@@ -7,6 +7,13 @@ pub type TokenId {
   asset_name: AssetName,
 }
 
+// Token identifier with quantity — used for offer to declare amount in datum
+pub type Unit {
+  policy_id: PolicyId,
+  asset_name: AssetName,
+  quantity: Int,
+}
+
 // Rational number as num/den pair
 pub type RationalC {
   num: Int,
@@ -19,8 +26,8 @@ pub type OrderDatum {
   owner: ByteArray,
   // Seller's full address — receives payment on Buy
   destination: Address,
-  // What token is being sold (the UTxO value holds the actual amount)
-  offer: TokenId,
+  // What token is being sold and how much (enforced to match UTxO value)
+  offer: Unit,
   // What token the seller wants in return
   ask: TokenId,
   // Rational price: buyer pays ceil(offer_qty * num / den) of ask tokens
