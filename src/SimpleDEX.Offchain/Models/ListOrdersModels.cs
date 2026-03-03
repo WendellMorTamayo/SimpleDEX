@@ -6,6 +6,7 @@ public class ListOrdersRequest
     public string? OfferSubject { get; set; }
     public string? AskSubject { get; set; }
     public string? OwnerAddress { get; set; }
+    public string? ScriptHash { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

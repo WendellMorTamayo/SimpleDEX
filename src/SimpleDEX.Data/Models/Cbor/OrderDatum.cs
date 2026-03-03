@@ -11,5 +11,5 @@ public partial record OrderDatum(
     Address Destination,
     TokenId Offer,
     TokenId Ask,
-    ulong Price
+    RationalC Price
 ) : CborBase;

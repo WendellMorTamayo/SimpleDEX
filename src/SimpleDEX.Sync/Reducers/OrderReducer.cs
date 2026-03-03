@@ -22,8 +22,10 @@ public class OrderReducer(
     IConfiguration configuration
 ) : IReducer<Order>
 {
-    private readonly string _scriptHash = configuration["ScriptHash"]
-        ?? throw new InvalidOperationException("ScriptHash not configured");
+    private readonly HashSet<string> _scriptHashes = configuration.GetSection("ScriptHashes")
+        .Get<List<string>>()
+        ?.ToHashSet()
+        ?? throw new InvalidOperationException("ScriptHashes not configured");
     private readonly NetworkType _networkType = Enum.Parse<NetworkType>(configuration["NetworkType"] ?? "Preview");
 
     public async Task RollForwardAsync(Block block)
@@ -63,8 +65,9 @@ public class OrderReducer(
                 return txBody.Outputs()
                     .Select((output, index) => (TxHash: txHash, Index: index, Output: output));
             })
-            .Where(x => IsScriptOutput(x.Output))
-            .Select(x => TryParseOrder(x.TxHash, x.Index, x.Output, slot))
+            .Select(x => (x.TxHash, x.Index, x.Output, ScriptHash: TryMatchScriptOutput(x.Output)))
+            .Where(x => x.ScriptHash is not null)
+            .Select(x => TryParseOrder(x.TxHash, x.Index, x.Output, x.ScriptHash!, slot))
             .OfType<Order>()
     ];
 
@@ -121,23 +124,23 @@ public class OrderReducer(
             .Where(o => o.Slot >= slot)
             .ExecuteDeleteAsync();
 
-    private bool IsScriptOutput(TransactionOutput output)
+    private string? TryMatchScriptOutput(TransactionOutput output)
     {
         try
         {
             WalletAddress address = new(output.Address());
-            if (!address.ToBech32().StartsWith("addr")) return false;
+            if (!address.ToBech32().StartsWith("addr")) return null;
 
             byte[]? pkh = address.GetPaymentKeyHash();
-            if (pkh is null) return false;
+            if (pkh is null) return null;
 
-            return Convert.ToHexStringLower(pkh) == _scriptHash
-                && output.Datum() is not null;
+            string hash = Convert.ToHexStringLower(pkh);
+            return _scriptHashes.Contains(hash) && output.Datum() is not null ? hash : null;
         }
-        catch { return false; }
+        catch { return null; }
     }
 
-    private Order? TryParseOrder(string txHash, int index, TransactionOutput output, ulong slot)
+    private Order? TryParseOrder(string txHash, int index, TransactionOutput output, string scriptHash, ulong slot)
     {
         try
         {
@@ -149,7 +152,9 @@ public class OrderReducer(
                 DestinationAddress: datum.Destination.ToBech32(_networkType),
                 OfferSubject: Convert.ToHexStringLower(datum.Offer.PolicyId) + Convert.ToHexStringLower(datum.Offer.AssetName),
                 AskSubject: Convert.ToHexStringLower(datum.Ask.PolicyId) + Convert.ToHexStringLower(datum.Ask.AssetName),
-                Price: datum.Price,
+                PriceNum: datum.Price.Num,
+                PriceDen: datum.Price.Den,
+                ScriptHash: scriptHash,
                 Slot: slot,
                 Status: OrderStatus.Open,
                 SpentSlot: null

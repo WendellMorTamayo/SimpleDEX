@@ -8,7 +8,9 @@ public record Order(
     string DestinationAddress,
     string OfferSubject,
     string AskSubject,
-    ulong Price,
+    ulong PriceNum,
+    ulong PriceDen,
+    string ScriptHash,
     ulong Slot,
     OrderStatus Status,
     ulong? SpentSlot

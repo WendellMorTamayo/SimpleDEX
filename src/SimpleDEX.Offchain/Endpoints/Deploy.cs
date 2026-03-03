@@ -23,7 +23,7 @@ public class Deploy(ICardanoDataProvider provider) : Endpoint<DeployRequest, Dep
     public override async Task HandleAsync(DeployRequest req, CancellationToken ct)
     {
         string plutusJsonPath = Config["PlutusJsonPath"]!;
-        string validatorName = Config["ValidatorName"]!;
+        string validatorName = req.ValidatorName ?? Config["ValidatorName"]!;
 
         // Load validator from plutus.json
         string plutusJson = await File.ReadAllTextAsync(plutusJsonPath, ct);

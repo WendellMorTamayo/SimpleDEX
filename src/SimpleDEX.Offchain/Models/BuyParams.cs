@@ -1,10 +1,12 @@
 namespace SimpleDEX.Offchain.Models;
 
+public record BuyOrderRequest(
+    string OutRef,
+    ulong? Amount = null);
+
 public record BuyRequest(
     string BuyerAddress,
-    string OrderOutRef,
-    string AskSubject,
-    ulong AskPrice);
+    List<BuyOrderRequest> Orders);
 
 public record BuyResponse(
     string UnsignedTxCborHex);

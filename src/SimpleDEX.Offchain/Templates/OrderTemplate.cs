@@ -6,25 +6,31 @@ using SimpleDEX.Offchain.Models;
 
 namespace SimpleDEX.Offchain.Templates;
 
+public record OrderOutputItem(OrderDatum Datum, Value OutputValue);
+
 public static class OrderTemplate
 {
     public static TransactionTemplate<OrderRequest> Create(
         OrderRequest request,
         ICardanoDataProvider provider,
         string scriptAddress,
-        OrderDatum datum,
-        Value outputValue)
+        List<OrderOutputItem> items)
     {
-        return TransactionTemplateBuilder<OrderRequest>
+        TransactionTemplateBuilder<OrderRequest> builder = TransactionTemplateBuilder<OrderRequest>
             .Create(provider)
             .AddStaticParty("change", request.ChangeAddress, isChange: true)
-            .AddStaticParty("contract", scriptAddress)
-            .AddOutput((options, _, _) =>
+            .AddStaticParty("contract", scriptAddress);
+
+        foreach (OrderOutputItem item in items)
+        {
+            builder.AddOutput((options, _, _) =>
             {
                 options.To = "contract";
-                options.Amount = outputValue;
-                options.SetDatum(datum);
-            })
-            .Build();
+                options.Amount = item.OutputValue;
+                options.SetDatum(item.Datum);
+            });
+        }
+
+        return builder.Build();
     }
 }

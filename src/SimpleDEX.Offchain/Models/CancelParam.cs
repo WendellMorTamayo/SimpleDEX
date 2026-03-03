@@ -1,10 +1,11 @@
 namespace SimpleDEX.Offchain.Models;
 
+public record CancelOrderRef(
+    string TxHash,
+    ulong Index);
+
 public record CancelRequest(
-    string OrderTxHash,
-    ulong OrderIndex
-);
+    List<CancelOrderRef> Orders);
 
 public record CancelResponse(
-    string UnsignedTxCborHex
-);
+    string UnsignedTxCborHex);

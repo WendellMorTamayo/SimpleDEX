@@ -36,7 +36,9 @@ public class GetOrder(SimpleDEXDbContext db) : Endpoint<GetOrderRequest, OrderDt
             order.DestinationAddress,
             order.OfferSubject,
             order.AskSubject,
-            order.Price,
+            order.PriceNum,
+            order.PriceDen,
+            order.ScriptHash,
             order.Slot,
             order.Status.ToString(),
             order.SpentSlot

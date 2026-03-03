@@ -20,7 +20,7 @@ public static class DeployTemplate
             .AddOutput((options, _, _) =>
             {
                 options.To = "contract";
-                options.Amount = new Lovelace(request.LockAmount);
+                options.Amount = new Lovelace(5_000_000);
                 options.Script = script;
             })
             .Build();

@@ -6,7 +6,9 @@ public record OrderDto(
     string DestinationAddress,
     string OfferSubject,
     string AskSubject,
-    ulong Price,
+    ulong PriceNum,
+    ulong PriceDen,
+    string ScriptHash,
     ulong Slot,
     string Status,
     ulong? SpentSlot

@@ -39,6 +39,9 @@ public class ListOrders(SimpleDEXDbContext db) : Endpoint<ListOrdersRequest, Lis
             query = query.Where(o => o.OwnerPkh == ownerPkh);
         }
 
+        if (!string.IsNullOrEmpty(req.ScriptHash))
+            query = query.Where(o => o.ScriptHash == req.ScriptHash);
+
         int totalCount = await query.CountAsync(ct);
 
         IEnumerable<OrderDto> items = await query
@@ -51,7 +54,9 @@ public class ListOrders(SimpleDEXDbContext db) : Endpoint<ListOrdersRequest, Lis
                 o.DestinationAddress,
                 o.OfferSubject,
                 o.AskSubject,
-                o.Price,
+                o.PriceNum,
+                o.PriceDen,
+                o.ScriptHash,
                 o.Slot,
                 o.Status.ToString(),
                 o.SpentSlot

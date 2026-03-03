@@ -23,7 +23,14 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
 
     public override async Task HandleAsync(OrderRequest req, CancellationToken ct)
     {
-        string scriptAddress = Config["ScriptAddress"]!;
+        if (req.Orders.Count == 0)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        string scriptAddress = Config[$"Validators:{req.ScriptHash}:Address"]
+            ?? throw new InvalidOperationException($"Validator {req.ScriptHash} not configured");
 
         // Build Plutus Address from change address (preserving staking credential if present)
         WalletAddress addr = new(req.ChangeAddress);
@@ -36,40 +43,44 @@ public class Order(ICardanoDataProvider provider) : Endpoint<OrderRequest, Order
 
         Address ownerAddress = new(new VerificationKey(ownerPkh), stakeCredential);
 
-        // Parse offer subject (empty = ADA, otherwise first 56 hex = policyId, rest = assetName)
-        (byte[] offerPolicyId, byte[] offerAssetName) = ParseSubject(req.OfferSubject);
-        (byte[] askPolicyId, byte[] askAssetName) = ParseSubject(req.AskSubject);
-
-        // Construct OrderDatum
-        OrderDatum datum = new(
-            Owner: ownerPkh,
-            Destination: ownerAddress,
-            Offer: new TokenId(offerPolicyId, offerAssetName),
-            Ask: new TokenId(askPolicyId, askAssetName),
-            Price: req.AskPrice
-        );
-
-        // Build output value
-        Value outputValue;
-        if (offerPolicyId.Length == 0)
+        // Build per-order output items
+        List<OrderOutputItem> items = [];
+        foreach (OrderItem orderItem in req.Orders)
         {
-            outputValue = new Lovelace(req.OfferAmount);
-        }
-        else
-        {
-            TokenBundleOutput tokenBundle = new(new Dictionary<byte[], ulong>
+            (byte[] offerPolicyId, byte[] offerAssetName) = ParseSubject(orderItem.OfferSubject);
+            (byte[] askPolicyId, byte[] askAssetName) = ParseSubject(orderItem.AskSubject);
+
+            OrderDatum datum = new(
+                Owner: ownerPkh,
+                Destination: ownerAddress,
+                Offer: new TokenId(offerPolicyId, offerAssetName),
+                Ask: new TokenId(askPolicyId, askAssetName),
+                Price: new RationalC(orderItem.PriceNum, orderItem.PriceDen)
+            );
+
+            Value outputValue;
+            if (offerPolicyId.Length == 0)
             {
-                { offerAssetName, req.OfferAmount }
-            });
-            MultiAssetOutput multiAsset = new(new Dictionary<byte[], TokenBundleOutput>
+                outputValue = new Lovelace(orderItem.OfferAmount);
+            }
+            else
             {
-                { offerPolicyId, tokenBundle }
-            });
-            outputValue = new LovelaceWithMultiAsset(new Lovelace(0), multiAsset);
+                TokenBundleOutput tokenBundle = new(new Dictionary<byte[], ulong>
+                {
+                    { offerAssetName, orderItem.OfferAmount }
+                });
+                MultiAssetOutput multiAsset = new(new Dictionary<byte[], TokenBundleOutput>
+                {
+                    { offerPolicyId, tokenBundle }
+                });
+                outputValue = new LovelaceWithMultiAsset(new Lovelace(0), multiAsset);
+            }
+
+            items.Add(new OrderOutputItem(datum, outputValue));
         }
 
         // Build unsigned transaction
-        TransactionTemplate<OrderRequest> template = OrderTemplate.Create(req, provider, scriptAddress, datum, outputValue);
+        TransactionTemplate<OrderRequest> template = OrderTemplate.Create(req, provider, scriptAddress, items);
         Transaction unsignedTx = await template(req);
 
         string unsignedTxCbor = Convert.ToHexString(CborSerializer.Serialize(unsignedTx));
