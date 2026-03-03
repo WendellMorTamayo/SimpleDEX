@@ -7,7 +7,7 @@ const NETWORK = Core.NetworkId.Testnet;
 const MNEMONIC =
   "oval bracket boss inquiry magic bottom jungle draw ripple mirror despair junk glass grunt minor desert hungry bracket feed hip lecture deal finish naive";
 const BLOCKFROST_PROJECT_ID = "previewrpkjSMZh2AsH0qKcsVNlIiYUAjmtxJtv";
-const DEFAULT_VALIDATOR_TITLE = "simple_dex_withdraw.simple_dex_withdraw.withdraw";
+const DEFAULT_VALIDATOR_TITLE = "simple_dex_indexed.simple_dex_indexed.withdraw";
 const VALIDATOR_TITLE = process.argv[2] || DEFAULT_VALIDATOR_TITLE;
 
 const main = async () => {

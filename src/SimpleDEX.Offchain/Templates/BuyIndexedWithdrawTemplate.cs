@@ -45,10 +45,11 @@ public static class BuyIndexedWithdrawTemplate
                     new Redeemer<CborBase>(RedeemerTag.Reward, 0, new PlutusVoid(), new ExUnits(500000, 200000000));
             });
 
-        // Add inputs and outputs in matching order (positional 1:1)
+        // Add inputs and outputs with output_index redeemer
         int idx = 0;
         foreach (BuyOrderItem item in items)
         {
+            int outputIndex = idx;
             string sellerParty = $"seller_{idx}";
             string inputId = Convert.ToHexStringLower(item.OrderUtxoRef.TransactionId) + item.OrderUtxoRef.Index;
 
@@ -59,7 +60,7 @@ public static class BuyIndexedWithdrawTemplate
                 options.UtxoRef = item.OrderUtxoRef;
                 options.Id = inputId;
                 options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new Buy(), new ExUnits(500000, 200000000));
+                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new IndexedBuy((ulong)outputIndex), new ExUnits(500000, 200000000));
             });
             builder.AddOutput((options, _, _) =>
             {

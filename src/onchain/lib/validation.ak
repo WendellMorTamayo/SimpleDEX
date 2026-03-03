@@ -12,12 +12,15 @@ pub fn datum_tag(utxo: OutputReference) -> ByteArray {
     |> crypto.blake2b_256()
 }
 
-/// Validate a Buy (indexed): positional output matches input — no datum tag needed
+/// Validate a Buy (indexed): use output_index to look up the target output
 pub fn validate_buy_indexed(
   order: OrderDatum,
   input: Input,
-  output: Output,
+  outputs: List<Output>,
+  output_index: Int,
 ) -> Bool {
+  expect Some(output) = list.at(outputs, output_index)
+
   let offer_quantity =
     assets.quantity_of(
       input.output.value,

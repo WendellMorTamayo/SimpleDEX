@@ -3,7 +3,7 @@ use cardano/assets
 use cardano/transaction.{NoDatum, Output, OutputReference, Spend, Transaction}
 use simple_dex_indexed
 use tests/utils.{mock_order, mock_script_input, mock_utxo}
-use types.{Buy, Cancel, OrderDatum}
+use types.{IndexedBuy, IndexedCancel, OrderDatum}
 
 // Shared script hash for tests
 const script_hash = #"dead"
@@ -35,7 +35,12 @@ test spend_succeeds_with_withdrawal() {
           }
         }
 
-  simple_dex_indexed.simple_dex_indexed.spend(Some(order), Buy, utxo, tx)
+  simple_dex_indexed.simple_dex_indexed.spend(
+    Some(order),
+    IndexedBuy { output_index: 0 },
+    utxo,
+    tx,
+  )
 }
 
 test spend_fails_without_withdrawal() fail {
@@ -59,10 +64,15 @@ test spend_fails_without_withdrawal() fail {
           }
         }
 
-  simple_dex_indexed.simple_dex_indexed.spend(Some(order), Buy, utxo, tx)
+  simple_dex_indexed.simple_dex_indexed.spend(
+    Some(order),
+    IndexedBuy { output_index: 0 },
+    utxo,
+    tx,
+  )
 }
 
-// -- Withdraw Tests (runs full validation with positional matching) --
+// -- Withdraw Tests (runs full validation with output_index matching) --
 
 test withdraw_buy_succeeds() {
   let alice_pkh = #"01"
@@ -94,7 +104,9 @@ test withdraw_buy_succeeds() {
             ..t,
             inputs: [mock_script_input(utxo, order, offer_qty, script_hash)],
             outputs: [output],
-            redeemers: [Pair(Spend(utxo), to_data(Buy))],
+            redeemers: [
+              Pair(Spend(utxo), to_data(IndexedBuy { output_index: 0 })),
+            ],
           }
         }
 
@@ -135,7 +147,9 @@ test withdraw_buy_fails_insufficient_payment() fail {
             ..t,
             inputs: [mock_script_input(utxo, order, offer_qty, script_hash)],
             outputs: [output],
-            redeemers: [Pair(Spend(utxo), to_data(Buy))],
+            redeemers: [
+              Pair(Spend(utxo), to_data(IndexedBuy { output_index: 0 })),
+            ],
           }
         }
 
@@ -182,7 +196,9 @@ test withdraw_buy_fails_wrong_recipient() fail {
             ..t,
             inputs: [mock_script_input(utxo, order, offer_qty, script_hash)],
             outputs: [output],
-            redeemers: [Pair(Spend(utxo), to_data(Buy))],
+            redeemers: [
+              Pair(Spend(utxo), to_data(IndexedBuy { output_index: 0 })),
+            ],
           }
         }
 
@@ -211,7 +227,7 @@ test withdraw_cancel_succeeds() {
             inputs: [mock_script_input(utxo, order, 100, script_hash)],
             outputs: [],
             extra_signatories: [alice_pkh],
-            redeemers: [Pair(Spend(utxo), to_data(Cancel))],
+            redeemers: [Pair(Spend(utxo), to_data(IndexedCancel))],
           }
         }
 
@@ -240,7 +256,7 @@ test withdraw_cancel_fails_wrong_signer() fail {
             inputs: [mock_script_input(utxo, order, 100, script_hash)],
             outputs: [],
             extra_signatories: [#"ff"],
-            redeemers: [Pair(Spend(utxo), to_data(Cancel))],
+            redeemers: [Pair(Spend(utxo), to_data(IndexedCancel))],
           }
         }
 
@@ -251,7 +267,7 @@ test withdraw_cancel_fails_wrong_signer() fail {
   )
 }
 
-// -- Batch Buy via Withdraw (positional matching) --
+// -- Batch Buy via Withdraw (output_index matching) --
 
 test withdraw_batch_buy_succeeds() {
   let alice_pkh = #"01"
@@ -300,7 +316,16 @@ test withdraw_batch_buy_succeeds() {
               mock_script_input(utxo_b, order, offer_qty, script_hash),
             ],
             outputs: [output_a, output_b],
-            redeemers: [Pair(Spend(utxo_a), to_data(Buy)), Pair(Spend(utxo_b), to_data(Buy))],
+            redeemers: [
+              Pair(
+                Spend(utxo_a),
+                to_data(IndexedBuy { output_index: 0 }),
+              ),
+              Pair(
+                Spend(utxo_b),
+                to_data(IndexedBuy { output_index: 1 }),
+              ),
+            ],
           }
         }
 
@@ -311,8 +336,8 @@ test withdraw_batch_buy_succeeds() {
   )
 }
 
-// Double satisfaction blocked: 2 inputs, 1 output → zip truncates, second input unvalidated
-test withdraw_double_satisfaction_blocked() fail {
+// Double satisfaction not blocked: 2 inputs both point at same output_index (known tradeoff)
+test withdraw_double_satisfaction_not_blocked() {
   let alice_pkh = #"01"
   let alice =
     address.Address {
@@ -347,7 +372,60 @@ test withdraw_double_satisfaction_blocked() fail {
               mock_script_input(utxo_b, order, offer_qty, script_hash),
             ],
             outputs: [single_payment],
-            redeemers: [Pair(Spend(utxo_a), to_data(Buy)), Pair(Spend(utxo_b), to_data(Buy))],
+            redeemers: [
+              Pair(
+                Spend(utxo_a),
+                to_data(IndexedBuy { output_index: 0 }),
+              ),
+              Pair(
+                Spend(utxo_b),
+                to_data(IndexedBuy { output_index: 0 }),
+              ),
+            ],
+          }
+        }
+
+  simple_dex_indexed.simple_dex_indexed.withdraw(
+    Void,
+    Script(script_hash),
+    tx,
+  )
+}
+
+// Invalid output_index beyond list length → list.at fails
+test withdraw_buy_fails_invalid_output_index() fail {
+  let alice_pkh = #"01"
+  let alice =
+    address.Address {
+      payment_credential: address.VerificationKey(alice_pkh),
+      stake_credential: None,
+    }
+  let order = mock_order(alice_pkh, alice)
+  let utxo = mock_utxo()
+  let offer_qty = 100
+
+  let output =
+    Output {
+      address: alice,
+      value: assets.from_asset(
+        order.ask.policy_id,
+        order.ask.asset_name,
+        offer_qty,
+      ),
+      datum: NoDatum,
+      reference_script: None,
+    }
+
+  let tx =
+    transaction.placeholder
+      |> fn(t) {
+          Transaction {
+            ..t,
+            inputs: [mock_script_input(utxo, order, offer_qty, script_hash)],
+            outputs: [output],
+            redeemers: [
+              Pair(Spend(utxo), to_data(IndexedBuy { output_index: 99 })),
+            ],
           }
         }
 

@@ -54,7 +54,7 @@ public static class CancelIndexedWithdrawTemplate
                 options.UtxoRef = orderRef;
                 options.Id = inputId;
                 options.RedeemerBuilder = (mapping, parameters, txBuilder) =>
-                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new Cancel(), new ExUnits(500000, 200000000));
+                    new Redeemer<CborBase>(RedeemerTag.Spend, 0, new IndexedCancel(), new ExUnits(500000, 200000000));
             });
             idx++;
         }

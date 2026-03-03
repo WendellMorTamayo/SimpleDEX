@@ -33,3 +33,8 @@ pub type OrderRedeemer {
   // Owner cancels and reclaims — no extra data needed
   Cancel
 }
+
+pub type IndexedOrderRedeemer {
+  IndexedBuy { output_index: Int }
+  IndexedCancel
+}
