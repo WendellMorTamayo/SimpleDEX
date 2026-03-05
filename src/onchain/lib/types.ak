@@ -45,3 +45,8 @@ pub type IndexedOrderRedeemer {
   IndexedBuy { output_index: Int }
   IndexedCancel
 }
+
+pub type MerkelizedOrderRedeemer {
+  MerkelizedBuy { output_index: Int }
+  MerkelizedCancel
+}

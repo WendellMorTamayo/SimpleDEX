@@ -122,10 +122,26 @@ public class Buy(ICardanoDataProvider provider, SimpleDEXDbContext db) : Endpoin
 
         // Build unsigned transaction — route by validator type
         string validatorType = Config[$"Validators:{scriptHash}:Type"] ?? "spend";
+
+        // Resolve logic validator config for merkelized
+        TransactionInput? logicScriptRefUtxo = null;
+        byte[]? logicScriptHashBytes = null;
+        string? logicAddress = null;
+        if (validatorType == "merkelized-main")
+        {
+            string logicHash = Config[$"Validators:{scriptHash}:BuyLogicHash"]!;
+            string logicRefTxHash = Config[$"Validators:{logicHash}:ScriptRef:TxHash"]!;
+            ulong logicRefTxIndex = ulong.Parse(Config[$"Validators:{logicHash}:ScriptRef:TxIndex"]!);
+            logicScriptRefUtxo = new TransactionInput(Convert.FromHexString(logicRefTxHash), logicRefTxIndex);
+            logicScriptHashBytes = Convert.FromHexString(logicHash);
+            logicAddress = Config[$"Validators:{logicHash}:Address"]!;
+        }
+
         TransactionTemplate<BuyRequest> template = validatorType switch
         {
             "withdraw" => BuyWithdrawTemplate.Create(req, provider, scriptAddress, scriptRefUtxo, items, Convert.FromHexString(scriptHash)),
             "indexed-withdraw" => BuyIndexedWithdrawTemplate.Create(req, provider, scriptAddress, scriptRefUtxo, items, Convert.FromHexString(scriptHash)),
+            "merkelized-main" => BuyMerkelizedTemplate.Create(req, provider, scriptAddress, scriptRefUtxo, items, logicScriptRefUtxo!, logicScriptHashBytes!, logicAddress!),
             _ => BuyTemplate.Create(req, provider, scriptAddress, scriptRefUtxo, items),
         };
         Transaction unsignedTx = await template(req);

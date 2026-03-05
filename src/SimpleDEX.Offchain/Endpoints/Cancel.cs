@@ -82,10 +82,26 @@ public class Cancel(ICardanoDataProvider provider, SimpleDEXDbContext db) : Endp
 
         // Build unsigned transaction — route by validator type
         string validatorType = Config[$"Validators:{scriptHash}:Type"] ?? "spend";
+
+        // Resolve logic validator config for merkelized
+        TransactionInput? logicScriptRefUtxo = null;
+        byte[]? logicScriptHashBytes = null;
+        string? logicAddress = null;
+        if (validatorType == "merkelized-main")
+        {
+            string logicHash = Config[$"Validators:{scriptHash}:CancelLogicHash"]!;
+            string logicRefTxHash = Config[$"Validators:{logicHash}:ScriptRef:TxHash"]!;
+            ulong logicRefTxIndex = ulong.Parse(Config[$"Validators:{logicHash}:ScriptRef:TxIndex"]!);
+            logicScriptRefUtxo = new TransactionInput(Convert.FromHexString(logicRefTxHash), logicRefTxIndex);
+            logicScriptHashBytes = Convert.FromHexString(logicHash);
+            logicAddress = Config[$"Validators:{logicHash}:Address"]!;
+        }
+
         TransactionTemplate<CancelRequest> template = validatorType switch
         {
             "withdraw" => CancelWithdrawTemplate.Create(provider, scriptAddress, ownerAddress, scriptReference, orderReferences, Convert.FromHexString(scriptHash)),
             "indexed-withdraw" => CancelIndexedWithdrawTemplate.Create(provider, scriptAddress, ownerAddress, scriptReference, orderReferences, Convert.FromHexString(scriptHash)),
+            "merkelized-main" => CancelMerkelizedTemplate.Create(provider, scriptAddress, ownerAddress, scriptReference, orderReferences, logicScriptRefUtxo!, logicScriptHashBytes!, logicAddress!),
             _ => CancelTemplate.Create(provider, scriptAddress, ownerAddress, scriptReference, orderReferences),
         };
         Transaction unsignedTx = await template(req);

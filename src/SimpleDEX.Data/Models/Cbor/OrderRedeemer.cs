@@ -26,3 +26,15 @@ public partial record IndexedBuy(ulong OutputIndex) : IndexedOrderRedeemer;
 [CborSerializable]
 [CborConstr(1)]
 public partial record IndexedCancel : IndexedOrderRedeemer;
+
+[CborSerializable]
+[CborUnion]
+public abstract partial record MerkelizedOrderRedeemer : CborBase;
+
+[CborSerializable]
+[CborConstr(0)]
+public partial record MerkelizedBuy(ulong OutputIndex) : MerkelizedOrderRedeemer;
+
+[CborSerializable]
+[CborConstr(1)]
+public partial record MerkelizedCancel : MerkelizedOrderRedeemer;

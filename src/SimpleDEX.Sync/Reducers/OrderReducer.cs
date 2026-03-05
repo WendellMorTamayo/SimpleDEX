@@ -190,7 +190,19 @@ public class OrderReducer(
                     _ => null
                 };
             }
-            catch { return null; }
+            catch
+            {
+                try
+                {
+                    return CborSerializer.Deserialize<MerkelizedOrderRedeemer>(redeemer.Data.Raw!.Value) switch
+                    {
+                        MerkelizedBuy => OrderStatus.Filled,
+                        MerkelizedCancel => OrderStatus.Cancelled,
+                        _ => null
+                    };
+                }
+                catch { return null; }
+            }
         }
     }
 }
